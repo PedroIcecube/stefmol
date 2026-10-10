@@ -191,7 +191,7 @@ export default function Home() {
                 </p>
               </div>
               <a
-                href="https://wa.me/"
+                href="https://wa.me/573114020157?text=¡Hola!%20Quiero%20hacer%20una%20consulta%20sobre%20productos%20en%20Stefmol."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full py-3 px-4 rounded-full bg-[#90247C] hover:bg-[#781B66] text-white font-semibold flex items-center justify-center gap-2 shadow-md transition-colors text-sm"
@@ -278,8 +278,8 @@ export default function Home() {
               key={c}
               onClick={() => setCategory(c)}
               className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all ${category === c
-                  ? "pink-gradient text-white shadow-md shadow-pink-500/20"
-                  : "bg-white border border-gray-200 text-slate-700 hover:bg-gray-50"
+                ? "pink-gradient text-white shadow-md shadow-pink-500/20"
+                : "bg-white border border-gray-200 text-slate-700 hover:bg-gray-50"
                 }`}
             >
               {c}
@@ -321,8 +321,8 @@ export default function Home() {
                   <button
                     onClick={() => add(p)}
                     className={`w-full rounded-xl p-3 mt-3 flex justify-center items-center gap-2 font-bold transition-all duration-300 transform active:scale-95 shadow-md ${isAdded
-                        ? "bg-emerald-600 text-white scale-102 shadow-emerald-500/30"
-                        : "pink-gradient text-white shadow-pink-500/20 hover:shadow-pink-500/40"
+                      ? "bg-emerald-600 text-white scale-102 shadow-emerald-500/30"
+                      : "pink-gradient text-white shadow-pink-500/20 hover:shadow-pink-500/40"
                       }`}
                   >
                     {isAdded ? (
