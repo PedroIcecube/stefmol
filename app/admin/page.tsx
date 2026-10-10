@@ -1,63 +1,24 @@
 "use client";
-
 import { useState } from "react";
 import Link from "next/link";
-import { Heart, Plus, Trash, ArrowLeft, Package } from "lucide-react";
-
-export default function AdminPage() {
-    const [selectedCategory, setSelectedCategory] = useState("Todas");
-
-    return (
-        <div className="min-h-screen bg-slate-950 text-slate-100 p-6">
-            <div className="max-w-5xl mx-auto space-y-6">
-
-                {/* Encabezado */}
-                <div className="flex items-center justify-between border-b border-rose-950/40 pb-4">
-                    <div className="flex items-center gap-3">
-                        <Link
-                            href="/"
-                            className="p-2 rounded-xl bg-slate-900 border border-rose-950/40 text-slate-300 hover:text-white"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                        </Link>
-                        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                            <Heart className="w-6 h-6 text-rose-500" />
-                            <span>Panel de Administración</span>
-                        </h1>
-                    </div>
-
-                    <button className="px-4 py-2 rounded-xl bg-rose-600 text-white font-medium text-sm flex items-center gap-2 hover:bg-rose-500 transition-colors">
-                        <Plus className="w-4 h-4" />
-                        <span>Nuevo Producto</span>
-                    </button>
-                </div>
-
-                {/* Filtros rápidos */}
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                    {["Todas", "Promociones del Mes", "Juguetes", "Lubricantes"].map((cat) => (
-                        <button
-                            key={cat}
-                            onClick={() => setSelectedCategory(cat)}
-                            className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${selectedCategory === cat
-                                    ? "bg-rose-900 text-white border border-rose-700"
-                                    : "bg-slate-900 text-slate-400 border border-rose-950/30 hover:bg-slate-800"
-                                }`}
-                        >
-                            {cat}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Mensaje de estado */}
-                <div className="bg-slate-900/60 border border-rose-950/40 rounded-2xl p-8 text-center space-y-3">
-                    <Package className="w-10 h-10 text-rose-500 mx-auto opacity-80" />
-                    <h3 className="text-lg font-semibold text-white">Gestión de Inventario</h3>
-                    <p className="text-slate-400 text-sm max-w-md mx-auto">
-                        Categoría seleccionada: <span className="text-rose-400 font-medium">{selectedCategory}</span>. Desde aquí podrás agregar, editar y eliminar productos de la tienda.
-                    </p>
-                </div>
-
-            </div>
-        </div>
-    );
+import { ArrowLeft, ImagePlus, LoaderCircle, PlusCircle, CheckCircle2 } from "lucide-react";
+export default function Admin() {
+    const [password, setPassword] = useState(""), [name, setName] = useState(""), [price, setPrice] = useState(""), [category, setCategory] = useState("Juguetes"), [description, setDescription] = useState(""), [file, setFile] = useState<File | null>(null), [preview, setPreview] = useState(""), [busy, setBusy] = useState(false), [message, setMessage] = useState(""), [error, setError] = useState(false);
+    function choose(f: File | null) { setFile(f); setPreview(f ? URL.createObjectURL(f) : ""); }
+    async function submit(e: React.FormEvent) {
+        e.preventDefault(); setBusy(true); setMessage(""); setError(false);
+        try {
+            let image_url = "";
+            if (file) { const fd = new FormData(); fd.append("file", file); const up = await fetch("/api/upload", { method: "POST", headers: { "x-admin-password": password }, body: fd }); const ud = await up.json(); if (!up.ok) throw new Error(ud.error || "Error subiendo imagen"); image_url = ud.url; }
+            const r = await fetch("/api/products", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-password": password }, body: JSON.stringify({ name, price: Number(price), category, description, image_url }) });
+            const d = await r.json(); if (!r.ok) throw new Error(d.error || "No se pudo guardar");
+            setMessage("¡Producto guardado! Ya aparece en el catálogo."); setName(""); setPrice(""); setDescription(""); setFile(null); setPreview("");
+        } catch (err) { setError(true); setMessage(err instanceof Error ? err.message : "Ocurrió un error"); } finally { setBusy(false); }
+    }
+    return <main className="min-h-screen bg-gradient-to-br from-rose-50 to-white p-5 md:p-10"><div className="max-w-2xl mx-auto"><Link href="/" className="inline-flex items-center gap-2 text-pink-700 mb-7"><ArrowLeft size={18} /> Volver a la tienda</Link><div className="bg-white rounded-3xl soft-shadow p-6 md:p-9"><div className="brand-script text-4xl text-pink-600">Stefmol</div><h1 className="text-2xl font-black mt-2">Administrar productos</h1><p className="text-gray-500 text-sm mt-2">Sube fotos directamente desde la galería del celular o desde una carpeta de tu computador.</p>
+        <form onSubmit={submit} className="mt-7 space-y-5"><div><label className="block text-sm font-semibold mb-2">Contraseña de administrador</label><input required type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full border rounded-xl p-3" placeholder="Contraseña configurada en Vercel" /></div><div><label className="block text-sm font-semibold mb-2">Nombre del producto</label><input required value={name} onChange={e => setName(e.target.value)} className="w-full border rounded-xl p-3" placeholder="Ej. Vibrador Conejito 12 modos" /></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><label className="block text-sm font-semibold mb-2">Precio (COP)</label><input required min="0" type="number" value={price} onChange={e => setPrice(e.target.value)} className="w-full border rounded-xl p-3" placeholder="89900" /></div><div><label className="block text-sm font-semibold mb-2">Categoría</label><select value={category} onChange={e => setCategory(e.target.value)} className="w-full border rounded-xl p-3 bg-white">{["Juguetes", "Vibradores", "Estimuladores", "Anales", "Kits", "Lencería", "Lubricantes", "Accesorios"].map(c => <option key={c}>{c}</option>)}</select></div></div><div><label className="block text-sm font-semibold mb-2">Descripción</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full border rounded-xl p-3 min-h-24" placeholder="Características, tallas, material…" /></div>
+            <div><label className="block text-sm font-semibold mb-2">Foto del producto</label><label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-pink-300 bg-pink-50 rounded-2xl p-6 text-center cursor-pointer hover:bg-pink-100"><ImagePlus size={34} className="text-pink-600" /><span className="font-semibold">{file ? file.name : "Toca para elegir una imagen"}</span><span className="text-xs text-gray-500">JPG, PNG, WEBP · máximo 5 MB</span><input type="file" accept="image/*" onChange={e => choose(e.target.files?.[0] ?? null)} className="sr-only" /></label>{preview && <div className="mt-3 flex items-start gap-4"><img src={preview} alt="Vista previa" className="w-32 h-32 rounded-xl object-cover border" /><button type="button" onClick={() => choose(null)} className="text-sm text-red-600 underline">Quitar imagen</button></div>}</div>
+            <button disabled={busy} className="w-full rounded-xl pink-gradient text-white font-bold py-4 flex items-center justify-center gap-2 disabled:opacity-60">{busy ? <><LoaderCircle className="animate-spin" /> Guardando…</> : <><PlusCircle /> Guardar producto</>}</button>
+            {message && <p className={`rounded-xl p-3 text-sm flex gap-2 ${error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>{!error && <CheckCircle2 size={18} />}{message}</p>}
+        </form></div><p className="text-xs text-gray-500 mt-5 text-center">Consejo: usa fotos propias o imágenes que tengas autorización para publicar.</p></div></main>
 }
