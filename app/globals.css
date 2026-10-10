@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+:root {
+    --pink: #f52d86;
+    --hot-pink: #ff72b5;
+    --ink: #090508;
+    --cream: #fff9fc;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    background: #fff9fc;
+    color: #171017;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+.hero-bg {
+    background: radial-gradient(ellipse at 70% 25%, #772143 0%, #220b17 42%, #080508 80%);
+}
+
+.brand-script {
+    font-family: "Brush Script MT", "Segoe Script", cursive;
+    font-style: italic;
+    letter-spacing: -2px;
+}
+
+.pink-gradient {
+    background: linear-gradient(120deg, #ff70b4, #ed1680);
+}
+
+.soft-shadow {
+    box-shadow: 0 12px 34px rgba(99, 13, 53, .12);
+}
