@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Menu, Search, ShoppingCart, Heart, Truck, LockKeyhole,
   ShieldCheck, Headset, MessageCircle, Plus, Minus, Trash2,
-  ArrowRight, X, ChevronRight, CheckCircle2, Sparkles
+  ArrowRight, X, ChevronRight, CheckCircle2
 } from "lucide-react";
 
 type Product = {
@@ -94,29 +94,32 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 selection:bg-rose-600 selection:text-white">
+    <main className="bg-gradient-to-br from-rose-50/50 via-white to-pink-50/30 text-slate-900 min-h-screen">
 
-      {/* BARRA SUPERIOR */}
-      <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-xl border-b border-rose-950/40 text-white px-5 md:px-10 py-4">
+      {/* BARRA SUPERIOR CON HERO-BG ROSADO */}
+      <header className="hero-bg text-white px-5 md:px-10 py-4 shadow-md sticky top-0 z-40">
         <div className="mx-auto max-w-7xl flex items-center justify-between gap-3">
           <button
             onClick={() => setMenuOpen(true)}
             aria-label="Menú"
-            className="p-2 rounded-xl bg-slate-900 border border-rose-900/40 text-rose-300 hover:bg-rose-950 transition-all active:scale-95 cursor-pointer shadow-md"
+            className="p-2 hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
           >
-            <Menu className="w-6 h-6 text-rose-400" />
+            <Menu size={24} />
           </button>
 
           <a href="#" className="text-center">
             <div className="brand-script text-4xl md:text-5xl text-pink-300">Stefmol</div>
-            <div className="text-[9px] tracking-[.28em] text-slate-400">TU TIENDA ERÓTICA</div>
+            <div className="text-[9px] tracking-[.28em] text-pink-100/80">TU TIENDA ERÓTICA</div>
           </a>
 
           <div className="flex gap-4 items-center">
-            <button onClick={() => setCartOpen(true)} className="relative p-2 rounded-xl bg-rose-950/30 border border-rose-900/30 text-rose-300" aria-label="Carrito">
-              <ShoppingCart className="w-5 h-5" />
+            <a href="#catalogo" aria-label="Buscar" className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+              <Search size={22} />
+            </a>
+            <button onClick={() => setCartOpen(true)} className="relative p-2 hover:bg-white/10 rounded-xl transition-colors" aria-label="Carrito">
+              <ShoppingCart size={22} />
               {cart.reduce((s, p) => s + p.quantity, 0) > 0 && (
-                <span className="absolute -right-1 -top-1 bg-rose-600 rounded-full text-xs font-bold w-5 h-5 flex items-center justify-center text-white">
+                <span className="absolute -right-1 -top-1 bg-pink-500 rounded-full text-xs font-bold w-5 h-5 flex items-center justify-center text-white shadow-sm">
                   {cart.reduce((s, p) => s + p.quantity, 0)}
                 </span>
               )}
@@ -125,30 +128,30 @@ export default function Home() {
         </div>
       </header>
 
-      {/* MENÚ LATERAL TIPO DRAWER (REFERENCIA) */}
+      {/* MENÚ LATERAL DRAWER (REFERENCIA) EN FONDO BLANCO / ROSADO */}
       {menuOpen && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity" onClick={() => setMenuOpen(false)} />
-          <div className="relative w-full max-w-sm sm:max-w-md bg-slate-950 text-slate-100 h-full shadow-2xl flex flex-col z-10 overflow-y-auto border-r border-rose-950/40">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity" onClick={() => setMenuOpen(false)} />
+          <div className="relative w-full max-w-sm sm:max-w-md bg-white text-slate-800 h-full shadow-2xl flex flex-col z-10 overflow-y-auto">
 
-            <div className="flex items-center justify-between p-4 border-b border-rose-950/40">
-              <span className="font-bold text-rose-300 tracking-wider text-sm">MENÚ PRINCIPAL</span>
-              <button onClick={() => setMenuOpen(false)} className="p-2 rounded-full hover:bg-slate-900 text-slate-300 transition-colors" aria-label="Cerrar">
-                <X className="w-6 h-6" />
+            <div className="flex items-center justify-between p-4 border-b border-pink-100">
+              <div className="brand-script text-2xl text-pink-600">Stefmol</div>
+              <button onClick={() => setMenuOpen(false)} className="p-2 rounded-full hover:bg-gray-100 text-slate-600 transition-colors" aria-label="Cerrar">
+                <X size={22} />
               </button>
             </div>
 
             <div className="p-4">
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-500">
-                  <Search className="w-4 h-4" />
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
+                  <Search size={18} />
                 </span>
                 <input
                   type="text"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Busca juguetes o marcas..."
-                  className="w-full pl-10 pr-4 py-2.5 rounded-full bg-slate-900 border border-rose-950/60 text-sm focus:outline-none focus:border-rose-500 text-slate-200"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#FAF5F0] border border-[#F2E8DF] text-sm focus:outline-none focus:border-pink-500 text-slate-800 placeholder:text-gray-400"
                 />
               </div>
             </div>
@@ -172,26 +175,28 @@ export default function Home() {
                     const el = document.getElementById("catalogo");
                     if (el) el.scrollIntoView({ behavior: "smooth" });
                   }}
-                  className="w-full flex items-center justify-between py-3.5 px-3 rounded-xl text-slate-200 font-semibold hover:bg-rose-950/40 border-b border-rose-950/20 transition-colors text-left"
+                  className="w-full flex items-center justify-between py-3 px-3 rounded-xl text-slate-900 font-bold text-sm hover:bg-pink-50 border-b border-gray-100 transition-colors text-left"
                 >
                   <span>{item.name}</span>
-                  <ChevronRight className="w-5 h-5 text-slate-600" />
+                  <ChevronRight size={18} className="text-gray-400" />
                 </button>
               ))}
             </div>
 
-            <div className="p-5 bg-gradient-to-br from-rose-950/40 to-slate-900 m-4 rounded-3xl border border-rose-900/30 space-y-3">
+            <div className="p-5 bg-[#FAF3F0] m-4 rounded-3xl border border-[#F3E6E0] space-y-3">
               <div>
-                <h4 className="font-bold text-rose-100 text-base">¿Dudas? Te asesoramos</h4>
-                <p className="text-xs text-slate-400 mt-0.5">Escríbenos por WhatsApp, respondemos con total discreción.</p>
+                <h4 className="font-bold text-slate-900 text-base">¿Dudas? Te asesoramos</h4>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  Escríbenos por WhatsApp, respondemos con total discreción.
+                </p>
               </div>
               <a
                 href="https://wa.me/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full py-3 px-4 rounded-2xl bg-rose-800 hover:bg-rose-700 text-white font-medium flex items-center justify-center gap-2 shadow-md transition-colors text-sm"
+                className="w-full py-3 px-4 rounded-full bg-[#90247C] hover:bg-[#781B66] text-white font-semibold flex items-center justify-center gap-2 shadow-md transition-colors text-sm"
               >
-                <MessageCircle className="w-5 h-5" />
+                <MessageCircle size={18} />
                 <span>Escribir por WhatsApp</span>
               </a>
             </div>
@@ -201,18 +206,15 @@ export default function Home() {
       )}
 
       {/* SECCIÓN HERO / PORTADA CENTRADA */}
-      <section className="bg-gradient-to-b from-slate-950 via-rose-950/10 to-slate-950 text-white border-b border-rose-950/30">
-        <div className="mx-auto max-w-7xl px-6 py-14 md:py-20 grid md:grid-cols-2 items-center gap-8">
+      <section className="hero-bg text-white">
+        <div className="mx-auto max-w-7xl px-6 py-14 md:py-24 grid md:grid-cols-2 items-center gap-8">
 
           {/* Columna Izquierda: Centrada */}
           <div className="text-center flex flex-col items-center justify-center">
             <p className="text-pink-300 italic text-xl md:text-2xl">Explora tu lado más</p>
-            <div className="flex items-center justify-center gap-2 my-1">
-              <h1 className="brand-script text-7xl md:text-9xl text-pink-400 leading-tight">Hot</h1>
-              <Heart className="w-12 h-12 text-pink-400 fill-pink-400/20 animate-pulse" />
-            </div>
-            <p className="tracking-widest text-xs md:text-sm mt-2 text-slate-300 uppercase">JUGUETES, LENCERÍA,<br /> ACCESORIOS Y MUCHO MÁS</p>
-            <a href="#catalogo" className="inline-flex items-center gap-3 rounded-full bg-gradient-to-r from-rose-600 to-pink-600 px-8 py-4 mt-8 font-bold shadow-lg shadow-rose-950/50 hover:scale-105 active:scale-95 transition-all">
+            <h1 className="brand-script text-7xl md:text-9xl text-pink-400 leading-tight">Hot ♡</h1>
+            <p className="tracking-widest text-xs md:text-sm mt-2 text-pink-100/90 uppercase">JUGUETES, LENCERÍA,<br /> ACCESORIOS Y MUCHO MÁS</p>
+            <a href="#catalogo" className="inline-flex items-center gap-4 rounded-full pink-gradient px-8 py-4 mt-8 font-bold text-white shadow-lg shadow-pink-900/30 hover:scale-105 active:scale-95 transition-all">
               VER PRODUCTOS <ArrowRight size={20} />
             </a>
           </div>
@@ -224,29 +226,29 @@ export default function Home() {
               const el = document.getElementById("catalogo");
               if (el) el.scrollIntoView({ behavior: "smooth" });
             }}
-            className="rounded-3xl border border-rose-900/40 bg-gradient-to-br from-rose-950/40 to-slate-900 min-h-64 md:min-h-80 flex items-center justify-center text-center p-8 cursor-pointer hover:border-rose-600/70 shadow-xl hover:scale-[1.01] transition-all group"
+            className="rounded-3xl border border-pink-300/30 bg-gradient-to-br from-pink-500/20 to-black/50 min-h-64 md:min-h-80 flex items-center justify-center text-center p-8 cursor-pointer hover:border-pink-400 transition-all shadow-xl hover:scale-[1.01] group"
           >
             <div>
-              <Heart className="mx-auto text-pink-400 group-hover:scale-110 transition-transform" size={52} />
+              <Heart className="mx-auto text-pink-300 group-hover:scale-110 transition-transform" size={52} />
               <p className="brand-script text-4xl text-pink-200 mt-4">Promociones del Mes</p>
-              <p className="text-xs text-pink-300/80 mt-3 font-semibold uppercase tracking-wider">Haz clic aquí para ver ofertas especiales ✨</p>
+              <p className="text-xs text-pink-200/80 mt-3 font-semibold uppercase tracking-wider">Haz clic aquí para ver ofertas especiales ✨</p>
             </div>
           </div>
 
         </div>
       </section>
 
-      {/* ICONOS INFORMATIVOS */}
+      {/* TARJETAS INFORMATIVAS CON BLANCO Y SOMBRA */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-7xl mx-auto px-5 -mt-5 relative z-10">
         {[
-          { icon: <Truck className="text-rose-500" />, title: "Envíos discretos" },
-          { icon: <LockKeyhole className="text-rose-500" />, title: "Compra segura" },
-          { icon: <Heart className="text-rose-500" />, title: "+18 Solo adultos" },
-          { icon: <MessageCircle className="text-rose-500" />, title: "Pedido por WhatsApp" }
+          { icon: <Truck className="text-pink-600" />, title: "Envíos discretos" },
+          { icon: <LockKeyhole className="text-pink-600" />, title: "Compra segura" },
+          { icon: <Heart className="text-pink-600" />, title: "+18 Solo adultos" },
+          { icon: <MessageCircle className="text-pink-600" />, title: "Pedido por WhatsApp" }
         ].map(x => (
-          <div key={x.title} className="bg-slate-900 border border-rose-950/50 rounded-2xl p-4 shadow-lg text-center text-rose-100 flex flex-col items-center gap-2">
+          <div key={x.title} className="bg-white rounded-xl p-4 soft-shadow text-center text-rose-900 flex flex-col items-center gap-2 border border-rose-100/60">
             {x.icon}
-            <span className="text-xs md:text-sm font-medium">{x.title}</span>
+            <span className="text-xs md:text-sm font-semibold">{x.title}</span>
           </div>
         ))}
       </section>
@@ -255,16 +257,16 @@ export default function Home() {
       <section id="catalogo" className="max-w-7xl mx-auto px-5 py-12">
         <div className="flex flex-wrap justify-between items-end gap-4 mb-6">
           <div>
-            <p className="text-pink-400 font-semibold text-sm uppercase tracking-wider">ENCUENTRA TUS FAVORITOS</p>
-            <h2 className="text-3xl font-black text-white">{category === "Promociones del Mes" ? "Promociones del Mes" : "Catálogo de productos"}</h2>
+            <p className="text-pink-600 font-semibold text-sm tracking-wider">ENCUENTRA TUS FAVORITOS</p>
+            <h2 className="text-3xl font-black text-slate-900">{category === "Promociones del Mes" ? "Promociones del Mes" : "Catálogo de productos"}</h2>
           </div>
           <div className="relative">
-            <Search className="absolute left-3 top-3.5 text-slate-400" size={18} />
+            <Search className="absolute left-3 top-3 text-gray-400" size={18} />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar productos..."
-              className="border border-rose-950/60 rounded-full py-2.5 pl-10 pr-4 w-64 max-w-full bg-slate-900 text-white outline-none focus:border-rose-500 text-sm"
+              className="border border-gray-200 rounded-full py-2.5 pl-10 pr-4 w-64 max-w-full outline-pink-400 bg-white text-slate-800 soft-shadow text-sm"
             />
           </div>
         </div>
@@ -276,8 +278,8 @@ export default function Home() {
               key={c}
               onClick={() => setCategory(c)}
               className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all ${category === c
-                  ? "bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-md shadow-rose-950/50"
-                  : "bg-slate-900 border border-rose-950/60 text-slate-300 hover:bg-slate-800"
+                  ? "pink-gradient text-white shadow-md shadow-pink-500/20"
+                  : "bg-white border border-gray-200 text-slate-700 hover:bg-gray-50"
                 }`}
             >
               {c}
@@ -285,42 +287,42 @@ export default function Home() {
           ))}
         </div>
 
-        {loading && <p className="text-slate-400 py-3">Cargando catálogo…</p>}
+        {loading && <p className="text-gray-500 py-3">Cargando catálogo…</p>}
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
           {visible.map(p => {
             const isAdded = addedId === p.id;
             return (
-              <article key={p.id} className="bg-slate-900/60 border border-rose-950/40 rounded-3xl p-4 shadow-xl flex flex-col justify-between group hover:border-rose-800/50 transition-all">
+              <article key={p.id} className="bg-white rounded-2xl p-3 soft-shadow flex flex-col justify-between border border-pink-100/50 hover:shadow-md transition-all">
                 <div>
-                  <div className="aspect-square rounded-2xl bg-slate-950 overflow-hidden flex items-center justify-center relative">
+                  <div className="aspect-square rounded-xl bg-gradient-to-br from-pink-50 to-rose-100 overflow-hidden flex items-center justify-center relative">
                     {p.image_url ? (
-                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="text-center p-4">
                         <Heart size={44} className="text-pink-400 mx-auto" />
-                        <p className="text-xs text-pink-300 mt-3">Stefmol</p>
+                        <p className="text-xs text-pink-700 mt-3 font-semibold">Imagen del producto</p>
                       </div>
                     )}
                     {p.promo && (
-                      <span className="absolute top-2 left-2 bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      <span className="absolute top-2 left-2 bg-pink-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
                         Promo
                       </span>
                     )}
                   </div>
-                  <h3 className="font-bold mt-3 leading-snug text-white group-hover:text-rose-400 transition-colors">{p.name}</h3>
-                  <p className="text-xs text-slate-400 mt-1 line-clamp-2">{p.description}</p>
+                  <h3 className="font-semibold mt-3 leading-snug text-slate-900">{p.name}</h3>
+                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">{p.description}</p>
                 </div>
 
                 <div>
-                  <p className="text-pink-400 font-black text-lg mt-3">{money(p.price)}</p>
+                  <p className="text-pink-600 font-black text-lg mt-3">{money(p.price)}</p>
 
-                  {/* BOTÓN AGREGAR CON MOVIMIENTO Y SOMBRA */}
+                  {/* BOTÓN AGREGAR CON ANIMACIÓN Y SOMBRA */}
                   <button
                     onClick={() => add(p)}
-                    className={`w-full rounded-2xl p-3 mt-3 flex justify-center items-center gap-2 font-semibold transition-all duration-300 transform active:scale-95 shadow-md ${isAdded
-                        ? "bg-emerald-600 text-white scale-102 shadow-emerald-950"
-                        : "bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white shadow-rose-950/50 hover:shadow-rose-600/40"
+                    className={`w-full rounded-xl p-3 mt-3 flex justify-center items-center gap-2 font-bold transition-all duration-300 transform active:scale-95 shadow-md ${isAdded
+                        ? "bg-emerald-600 text-white scale-102 shadow-emerald-500/30"
+                        : "pink-gradient text-white shadow-pink-500/20 hover:shadow-pink-500/40"
                       }`}
                   >
                     {isAdded ? (
@@ -331,7 +333,7 @@ export default function Home() {
                     ) : (
                       <>
                         <Plus size={17} />
-                        <span>Agregar al pedido</span>
+                        <span>Agregar</span>
                       </>
                     )}
                   </button>
@@ -341,11 +343,11 @@ export default function Home() {
           })}
         </div>
 
-        {!visible.length && <p className="py-12 text-center text-slate-400">No encontramos productos con esa búsqueda.</p>}
+        {!visible.length && <p className="py-12 text-center text-gray-500">No encontramos productos con esa búsqueda.</p>}
       </section>
 
       {/* FOOTER */}
-      <footer className="bg-[#0c060a] border-t border-rose-950/30 text-white px-5 py-10">
+      <footer className="bg-[#0c060a] text-white px-5 py-10">
         <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center text-sm">
           {[
             { icon: <Truck />, t: "ENVÍOS DISCRETOS" },
@@ -365,34 +367,34 @@ export default function Home() {
 
       {/* CARRITO / CHECKOUT DRAWER */}
       {cartOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex justify-end">
-          <div className="bg-slate-950 text-slate-100 border-l border-rose-950/40 w-full max-w-lg h-full overflow-y-auto p-5 md:p-7 flex flex-col justify-between">
+        <div className="fixed inset-0 z-50 bg-black/60 flex justify-end">
+          <div className="bg-white w-full max-w-lg h-full overflow-y-auto p-5 md:p-7 text-slate-800 flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between border-b border-rose-950/40 pb-4">
-                <h2 className="text-2xl font-black text-white">Mi pedido ({cart.reduce((s, p) => s + p.quantity, 0)})</h2>
-                <button onClick={() => setCartOpen(false)} aria-label="Cerrar" className="p-2 rounded-full hover:bg-slate-900 text-slate-300"><X /></button>
+              <div className="flex items-center justify-between border-b pb-4">
+                <h2 className="text-2xl font-black">Mi carrito ({cart.reduce((s, p) => s + p.quantity, 0)})</h2>
+                <button onClick={() => setCartOpen(false)} aria-label="Cerrar" className="p-2 rounded-full hover:bg-gray-100"><X /></button>
               </div>
 
               {!cart.length ? (
-                <div className="text-center py-20 text-slate-500">
-                  <ShoppingCart size={44} className="mx-auto mb-4 text-slate-600" />
+                <div className="text-center py-20 text-gray-500">
+                  <ShoppingCart size={44} className="mx-auto mb-4 text-gray-400" />
                   Tu carrito está vacío.
                 </div>
               ) : (
-                <div className="divide-y divide-rose-950/30 mt-4">
+                <div className="divide-y mt-2">
                   {cart.map(p => (
                     <div key={p.id} className="py-4 flex gap-3 items-center">
-                      <div className="w-20 h-20 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center border border-rose-950">
+                      <div className="w-20 h-20 rounded-lg bg-pink-50 overflow-hidden flex items-center justify-center border border-pink-100">
                         {p.image_url ? <img src={p.image_url} className="w-full h-full object-cover" alt={p.name} /> : <Heart className="text-pink-400" />}
                       </div>
                       <div className="flex-1">
-                        <p className="font-semibold text-white">{p.name}</p>
-                        <p className="text-pink-400 font-bold">{money(p.price)}</p>
+                        <p className="font-semibold text-slate-900">{p.name}</p>
+                        <p className="text-pink-600 font-bold">{money(p.price)}</p>
                         <div className="flex items-center gap-3 mt-2">
-                          <button className="border border-rose-900 rounded-lg p-1 bg-slate-900 text-white" onClick={() => qty(p.id, -1)}><Minus size={14} /></button>
-                          <span className="font-semibold">{p.quantity}</span>
-                          <button className="border border-rose-900 rounded-lg p-1 bg-slate-900 text-white" onClick={() => qty(p.id, 1)}><Plus size={14} /></button>
-                          <button className="ml-auto text-slate-400 hover:text-rose-400" onClick={() => setCart(old => old.filter(x => x.id !== p.id))}><Trash2 size={17} /></button>
+                          <button className="border rounded p-1 bg-white hover:bg-gray-50" onClick={() => qty(p.id, -1)}><Minus size={14} /></button>
+                          <span className="font-bold">{p.quantity}</span>
+                          <button className="border rounded p-1 bg-white hover:bg-gray-50" onClick={() => qty(p.id, 1)}><Plus size={14} /></button>
+                          <button className="ml-auto text-gray-400 hover:text-red-600" onClick={() => setCart(old => old.filter(x => x.id !== p.id))}><Trash2 size={17} /></button>
                         </div>
                       </div>
                     </div>
@@ -402,16 +404,16 @@ export default function Home() {
             </div>
 
             {cart.length > 0 && (
-              <div className="border-t border-rose-950/40 pt-4 mt-4">
-                <label className="block text-sm font-medium mb-2 text-slate-300">Notas del pedido (opcional)</label>
-                <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Color, talla, referencias…" className="w-full bg-slate-900 border border-rose-950 rounded-xl p-3 min-h-20 text-white text-sm outline-none focus:border-rose-500" />
+              <div className="border-t pt-4 mt-4">
+                <label className="block text-sm font-semibold mb-2">Notas del pedido (opcional)</label>
+                <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Color, talla, referencias…" className="w-full border rounded-xl p-3 min-h-20 text-sm focus:outline-pink-400" />
 
                 <div className="flex justify-between text-xl font-black my-4">
                   <span>Total:</span>
-                  <span className="text-pink-400">{money(total)}</span>
+                  <span className="text-pink-600">{money(total)}</span>
                 </div>
 
-                <button onClick={checkout} className="w-full rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white py-4 font-bold flex justify-center items-center gap-2 shadow-lg shadow-emerald-950/50 transition-all">
+                <button onClick={checkout} className="w-full rounded-full bg-green-600 hover:bg-green-700 text-white py-4 font-bold flex justify-center items-center gap-2 shadow-lg shadow-green-600/30 transition-all">
                   <MessageCircle /> Enviar pedido por WhatsApp
                 </button>
               </div>
