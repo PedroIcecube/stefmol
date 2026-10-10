@@ -1,10 +1,5 @@
 import type { Metadata } from "next";
 
-declare module "*.css" {
-  const content: Record<string, string>;
-  export default content;
-}
-
 import "./globals.css";
 
 export const metadata: Metadata = {
