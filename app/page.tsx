@@ -95,7 +95,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [addedId, setAddedId] = useState<string | null>(null);
 
-  // Índice para rotar las imágenes del Banner de Promociones
   const [promoImageIndex, setPromoImageIndex] = useState(0);
 
   useEffect(() => {
@@ -106,9 +105,9 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Extraer todas las imágenes disponibles de los productos marcados como 'promo'
+  // Extraer imágenes de productos marcados como promo
   const promoImages = useMemo(() => {
-    const promoProds = products.filter(p => p.promo);
+    const promoProds = products.filter(p => p.promo === true || p.category === "Promociones del Mes");
     const imgs: string[] = [];
 
     promoProds.forEach(p => {
@@ -122,7 +121,7 @@ export default function Home() {
     return imgs;
   }, [products]);
 
-  // Rotar la imagen del banner de promociones automáticamente cada 3.5 segundos
+  // Rotar la imagen del banner automáticamente
   useEffect(() => {
     if (promoImages.length <= 1) return;
 
@@ -138,10 +137,13 @@ export default function Home() {
     return catObj ? catObj.subcategories : [];
   }, [activeCategory]);
 
+  // Filtrar catálogo incluyendo soporte mejorado para Promociones
   const visible = useMemo(() => {
     return products.filter(p => {
+      const isPromoProduct = Boolean(p.promo) || p.category === "Promociones del Mes";
+
       const matchCat = activeCategory === "Promociones del Mes"
-        ? p.promo === true
+        ? isPromoProduct
         : p.category === activeCategory;
 
       const matchSubcat = activeSubcategory
@@ -208,7 +210,7 @@ export default function Home() {
 
           <a href="#" className="text-center">
             <div className="brand-script text-4xl md:text-5xl text-pink-300">Stefmol</div>
-            <div className="text-[9px] tracking-[.28em] text-pink-100/80">BOUTIQUE ERÓTICA</div>
+            <div className="text-[9px] tracking-[.28em] text-pink-100/80">TU TIENDA ERÓTICA</div>
           </a>
 
           <div className="flex gap-4 items-center">
@@ -227,7 +229,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* MENÚ LATERAL DRAWER CON SUBSECCIONES DESPLEGABLES */}
+      {/* MENÚ LATERAL DRAWER */}
       {menuOpen && (
         <div className="fixed inset-0 z-50 flex">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity" onClick={() => setMenuOpen(false)} />
@@ -331,25 +333,22 @@ export default function Home() {
             </a>
           </div>
 
-          {/* BANNER DE PROMOCIONES CON IMÁGENES ROTATIVAS AUTOMÁTICAS */}
+          {/* BANNER DE PROMOCIONES CON CARRUSEL DE FOTOS */}
           <div
             onClick={() => handleSelectCategory("Promociones del Mes", null)}
             className="relative rounded-3xl border border-pink-300/30 overflow-hidden min-h-64 md:min-h-80 flex items-center justify-center text-center p-8 cursor-pointer hover:border-pink-400 transition-all shadow-xl hover:scale-[1.01] group bg-gradient-to-br from-pink-900/40 to-black/80"
           >
-            {/* IMÁGENES DE FONDO EN CARRUSEL SUAVE */}
             {promoImages.length > 0 && promoImages.map((imgUrl, idx) => (
               <div
                 key={idx}
-                className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ${idx === promoImageIndex ? "opacity-40 scale-105" : "opacity-0 scale-100"
-                  } transition-all duration-1000`}
+                className={`absolute inset-0 bg-cover bg-center transition-all duration-1000 ${idx === promoImageIndex ? "opacity-40 scale-105" : "opacity-0 scale-100"
+                  }`}
                 style={{ backgroundImage: `url(${imgUrl})` }}
               />
             ))}
 
-            {/* FILTRO SOBRE LA IMAGEN PARA LEGIBILIDAD DEL TEXTO */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-pink-950/40 to-black/60" />
 
-            {/* CONTENIDO FIJO ENCIMA DE LAS FOTOS */}
             <div className="relative z-10">
               <Heart className="mx-auto text-pink-300 group-hover:scale-110 transition-transform drop-shadow-md" size={52} />
               <p className="brand-script text-4xl md:text-5xl text-pink-200 mt-4 drop-shadow-lg">Promociones del Mes</p>
