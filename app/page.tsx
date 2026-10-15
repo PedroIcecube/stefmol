@@ -15,6 +15,7 @@ type Product = {
   subcategory?: string | null;
   price: number;
   image_url: string | null;
+  image_urls?: string[];
   promo?: boolean;
 };
 
@@ -22,7 +23,6 @@ type CartItem = Product & { quantity: number };
 
 const money = (n: number) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
 
-// Estructura de categorías y sus subsecciones
 const categoryStructure = [
   {
     name: "Promociones del Mes",
@@ -89,12 +89,14 @@ export default function Home() {
   const [cartOpen, setCartOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Estado para controlar qué categoría del menú lateral está expandida
   const [expandedMenuCategory, setExpandedMenuCategory] = useState<string | null>("Juguetes");
 
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [addedId, setAddedId] = useState<string | null>(null);
+
+  // Índice para rotar las imágenes del Banner de Promociones
+  const [promoImageIndex, setPromoImageIndex] = useState(0);
 
   useEffect(() => {
     fetch("/api/products")
@@ -104,7 +106,33 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Obtener subcategorías de la categoría activa
+  // Extraer todas las imágenes disponibles de los productos marcados como 'promo'
+  const promoImages = useMemo(() => {
+    const promoProds = products.filter(p => p.promo);
+    const imgs: string[] = [];
+
+    promoProds.forEach(p => {
+      if (p.image_urls && p.image_urls.length > 0) {
+        imgs.push(...p.image_urls.filter(Boolean));
+      } else if (p.image_url) {
+        imgs.push(p.image_url);
+      }
+    });
+
+    return imgs;
+  }, [products]);
+
+  // Rotar la imagen del banner de promociones automáticamente cada 3.5 segundos
+  useEffect(() => {
+    if (promoImages.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setPromoImageIndex((prev) => (prev + 1) % promoImages.length);
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [promoImages]);
+
   const currentSubcategories = useMemo(() => {
     const catObj = categoryStructure.find(c => c.name === activeCategory);
     return catObj ? catObj.subcategories : [];
@@ -180,7 +208,7 @@ export default function Home() {
 
           <a href="#" className="text-center">
             <div className="brand-script text-4xl md:text-5xl text-pink-300">Stefmol</div>
-            <div className="text-[9px] tracking-[.28em] text-pink-100/80">TU TIENDA ERÓTICA</div>
+            <div className="text-[9px] tracking-[.28em] text-pink-100/80">BOUTIQUE ERÓTICA</div>
           </a>
 
           <div className="flex gap-4 items-center">
@@ -251,7 +279,6 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* SUBSECCIONES DESPLEGABLES (SOLO SE MUESTRAN SI ESTA CATEGORÍA ESTÁ EXPANDIDA) */}
                     {hasSubs && isExpanded && (
                       <div className="ml-4 mt-1 space-y-1 bg-pink-50/40 p-2 rounded-xl border-l-2 border-pink-300">
                         {cat.subcategories.map((sub, sIdx) => (
@@ -304,14 +331,31 @@ export default function Home() {
             </a>
           </div>
 
+          {/* BANNER DE PROMOCIONES CON IMÁGENES ROTATIVAS AUTOMÁTICAS */}
           <div
             onClick={() => handleSelectCategory("Promociones del Mes", null)}
-            className="rounded-3xl border border-pink-300/30 bg-gradient-to-br from-pink-500/20 to-black/50 min-h-64 md:min-h-80 flex items-center justify-center text-center p-8 cursor-pointer hover:border-pink-400 transition-all shadow-xl hover:scale-[1.01] group"
+            className="relative rounded-3xl border border-pink-300/30 overflow-hidden min-h-64 md:min-h-80 flex items-center justify-center text-center p-8 cursor-pointer hover:border-pink-400 transition-all shadow-xl hover:scale-[1.01] group bg-gradient-to-br from-pink-900/40 to-black/80"
           >
-            <div>
-              <Heart className="mx-auto text-pink-300 group-hover:scale-110 transition-transform" size={52} />
-              <p className="brand-script text-4xl text-pink-200 mt-4">Promociones del Mes</p>
-              <p className="text-xs text-pink-200/80 mt-3 font-semibold uppercase tracking-wider">Haz clic aquí para ver ofertas especiales ✨</p>
+            {/* IMÁGENES DE FONDO EN CARRUSEL SUAVE */}
+            {promoImages.length > 0 && promoImages.map((imgUrl, idx) => (
+              <div
+                key={idx}
+                className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ${idx === promoImageIndex ? "opacity-40 scale-105" : "opacity-0 scale-100"
+                  } transition-all duration-1000`}
+                style={{ backgroundImage: `url(${imgUrl})` }}
+              />
+            ))}
+
+            {/* FILTRO SOBRE LA IMAGEN PARA LEGIBILIDAD DEL TEXTO */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-pink-950/40 to-black/60" />
+
+            {/* CONTENIDO FIJO ENCIMA DE LAS FOTOS */}
+            <div className="relative z-10">
+              <Heart className="mx-auto text-pink-300 group-hover:scale-110 transition-transform drop-shadow-md" size={52} />
+              <p className="brand-script text-4xl md:text-5xl text-pink-200 mt-4 drop-shadow-lg">Promociones del Mes</p>
+              <p className="text-xs text-pink-100 mt-3 font-semibold uppercase tracking-wider bg-pink-950/60 backdrop-blur-xs px-4 py-1.5 rounded-full inline-block border border-pink-400/30 shadow-md">
+                Haz clic aquí para ver ofertas especiales ✨
+              </p>
             </div>
           </div>
         </div>
