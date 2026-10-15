@@ -39,7 +39,6 @@ export async function POST(req: Request) {
 
     const db = supabaseAdmin();
 
-    // Procesar las múltiples imágenes y la subcategoría
     const image_url = String(body.image_url ?? "");
     const image_urls = Array.isArray(body.image_urls) && body.image_urls.length > 0
       ? body.image_urls
@@ -58,8 +57,8 @@ export async function POST(req: Request) {
 
     if (error) throw error;
     return NextResponse.json(data, { status: 201 });
-  } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: "No se pudo guardar el producto." }, { status: 500 });
+  } catch (e: any) {
+    console.error("Error al guardar:", e);
+    return NextResponse.json({ error: e.message || "No se pudo guardar el producto." }, { status: 500 });
   }
 }
