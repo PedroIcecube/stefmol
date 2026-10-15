@@ -1,29 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, ImagePlus, LoaderCircle, PlusCircle, CheckCircle2, X, Trash2, Edit3, Lock, LogOut } from "lucide-react";
-
-type CategoryStructure = {
-    name: string;
-    subcategories: string[];
-};
-
-const categoryStructure: CategoryStructure[] = [
-    { name: "Promociones del Mes", subcategories: [] },
-    {
-        name: "Juguetes",
-        subcategories: ["Anillos vibradores", "Dildos", "Juegos eróticos", "Masturbadores", "Plugs anales", "BDSM", "Succionadores", "Vibradores"]
-    },
-    {
-        name: "Placer y Sensaciones",
-        subcategories: ["Anal", "Cremas fusión", "Estrechante", "Feromonas", "Garganta profunda", "Lubricantes", "Multiorgasmo", "Potenciador", "Comestibles", "Retardantes"]
-    },
-    {
-        name: "Lencería",
-        subcategories: ["Talla XS", "Talla S", "Talla M", "Talla L", "Talla XL", "Talla XXL", "Mallas", "Cuero"]
-    }
-];
+import { Plus, Trash2, Edit3, Check, X, ArrowLeft, Image as ImageIcon, Sparkles } from "lucide-react";
 
 type Product = {
     id: string;
@@ -34,445 +12,355 @@ type Product = {
     price: number;
     image_url: string | null;
     image_urls?: string[];
+    promo?: boolean;
 };
 
-export default function Admin() {
-    const [password, setPassword] = useState("");
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+const categoryStructure = [
+    { name: "Promociones del Mes", subcategories: [] },
+    { name: "Juguetes", subcategories: ["Anillos vibradores", "Dildos", "Juegos eróticos", "Masturbadores", "Plugs anales", "BDSM", "Succionadores", "Vibradores"] },
+    { name: "Placer y Sensaciones", subcategories: ["Anal", "Cremas fusión", "Estrechante", "Feromonas", "Garganta profunda", "Lubricantes", "Multiorgasmo", "Potenciador", "Comestibles", "Retardantes"] },
+    { name: "Lencería", subcategories: ["Talla XS", "Talla S", "Talla M", "Talla L", "Talla XL", "Talla XXL", "Mallas", "Cuero"] }
+];
 
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [name, setName] = useState("");
-    const [price, setPrice] = useState("");
-    const [category, setCategory] = useState("Juguetes");
-    const [subcategory, setSubcategory] = useState("Vibradores");
-    const [description, setDescription] = useState("");
-
-    const [files, setFiles] = useState<File[]>([]);
-    const [previews, setPreviews] = useState<string[]>([]);
-    const [existingImages, setExistingImages] = useState<string[]>([]);
-
+export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
-    const [busy, setBusy] = useState(false);
-    const [message, setMessage] = useState("");
-    const [error, setError] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [editingId, setEditingId] = useState<string | null>(null);
 
-    // Cargar productos únicamente cuando el usuario esté autenticado
+    // Formulario
+    const [name, setName] = useState("");
+    const [description, setDescription] = useState("");
+    const [category, setCategory] = useState("Juguetes");
+    const [subcategory, setSubcategory] = useState("");
+    const [price, setPrice] = useState("");
+    const [imageUrl, setImageUrl] = useState("");
+    const [promo, setPromo] = useState(false);
+
     useEffect(() => {
-        if (isAuthenticated) {
-            fetchProducts();
-        }
-    }, [isAuthenticated]);
+        loadProducts();
+    }, []);
 
-    function fetchProducts() {
+    function loadProducts() {
+        setLoading(true);
         fetch("/api/products")
-            .then(r => r.json())
-            .then(d => {
-                if (Array.isArray(d)) setProducts(d);
+            .then((r) => (r.ok ? r.json() : []))
+            .then((data) => {
+                if (Array.isArray(data)) setProducts(data);
             })
-            .catch(() => { });
+            .catch(() => { })
+            .finally(() => setLoading(false));
     }
 
-    function handleLogin(e: React.FormEvent) {
-        e.preventDefault();
-        if (!password) return;
-        // Marca como autenticado temporalmente para permitir ver el panel
-        setIsAuthenticated(true);
+    function resetForm() {
+        setName("");
+        setDescription("");
+        setCategory("Juguetes");
+        setSubcategory("");
+        setPrice("");
+        setImageUrl("");
+        setPromo(false);
+        setEditingId(null);
     }
 
-    function handleLogout() {
-        setIsAuthenticated(false);
-        setPassword("");
-        setProducts([]);
-    }
-
-    function handleCategoryChange(newCat: string) {
-        setCategory(newCat);
-        const catObj = categoryStructure.find(c => c.name === newCat);
-        if (catObj && catObj.subcategories.length > 0) {
-            setSubcategory(catObj.subcategories[0]);
-        } else {
-            setSubcategory("");
-        }
-    }
-
-    function handleFileSelect(selectedFiles: FileList | null) {
-        if (!selectedFiles) return;
-        const newFiles = Array.from(selectedFiles);
-        setFiles(prev => [...prev, ...newFiles]);
-        const newPreviews = newFiles.map(f => URL.createObjectURL(f));
-        setPreviews(prev => [...prev, ...newPreviews]);
-    }
-
-    function removeNewImage(index: number) {
-        setFiles(prev => prev.filter((_, i) => i !== index));
-        setPreviews(prev => prev.filter((_, i) => i !== index));
-    }
-
-    function removeExistingImage(index: number) {
-        setExistingImages(prev => prev.filter((_, i) => i !== index));
-    }
-
-    function startEdit(product: Product) {
-        setEditingId(product.id);
-        setName(product.name);
-        setPrice(String(product.price));
-        setCategory(product.category || "Juguetes");
-        setSubcategory(product.subcategory || "");
-        setDescription(product.description || "");
-        setExistingImages(product.image_urls && product.image_urls.length > 0 ? product.image_urls : (product.image_url ? [product.image_url] : []));
-        setFiles([]);
-        setPreviews([]);
+    function handleEdit(p: Product) {
+        setEditingId(p.id);
+        setName(p.name || "");
+        setDescription(p.description || "");
+        setCategory(p.category || "Juguetes");
+        setSubcategory(p.subcategory || "");
+        setPrice(p.price ? String(p.price) : "");
+        setImageUrl(p.image_url || "");
+        setPromo(Boolean(p.promo));
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    function cancelEdit() {
-        setEditingId(null);
-        setName("");
-        setPrice("");
-        setDescription("");
-        setExistingImages([]);
-        setFiles([]);
-        setPreviews([]);
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
+
+        if (!name.trim() || !price) {
+            alert("Por favor ingresa al menos el nombre y el precio.");
+            return;
+        }
+
+        // Permite emojis y cualquier carácter UTF-8
+        const payload = {
+            name: name,
+            description: description,
+            category: category,
+            subcategory: subcategory,
+            price: Number(price),
+            image_url: imageUrl,
+            promo: promo,
+        };
+
+        try {
+            const url = editingId ? `/api/products/${editingId}` : "/api/products";
+            const method = editingId ? "PUT" : "POST";
+
+            const res = await fetch(url, {
+                method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+
+            if (res.ok) {
+                resetForm();
+                loadProducts();
+            } else {
+                alert("Ocurrió un error al guardar el producto.");
+            }
+        } catch {
+            alert("Error de conexión al guardar.");
+        }
     }
 
     async function handleDelete(id: string) {
-        if (!confirm("¿Estás seguro de eliminar este producto?")) return;
+        if (!confirm("¿Estás seguro de que deseas eliminar este producto?")) return;
 
         try {
-            const r = await fetch(`/api/products/${id}`, {
-                method: "DELETE",
-                headers: { "x-admin-password": password }
-            });
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || "No autorizado o clave incorrecta");
-
-            setMessage("¡Producto eliminado correctamente!");
-            fetchProducts();
-        } catch (err: any) {
-            setError(true);
-            setMessage(err.message || "Error al eliminar");
-        }
-    }
-
-    async function submit(e: React.FormEvent) {
-        e.preventDefault();
-        setBusy(true);
-        setMessage("");
-        setError(false);
-
-        try {
-            const uploadedUrls: string[] = [...existingImages];
-
-            for (const file of files) {
-                const fd = new FormData();
-                fd.append("file", file);
-                const up = await fetch("/api/upload", {
-                    method: "POST",
-                    headers: { "x-admin-password": password },
-                    body: fd
-                });
-                const ud = await up.json();
-                if (!up.ok) throw new Error(ud.error || `Error subiendo imagen`);
-                uploadedUrls.push(ud.url);
+            const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
+            if (res.ok) {
+                loadProducts();
+            } else {
+                alert("No se pudo eliminar el producto.");
             }
-
-            const endpoint = editingId ? `/api/products/${editingId}` : "/api/products";
-            const method = editingId ? "PUT" : "POST";
-
-            const r = await fetch(endpoint, {
-                method: method,
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-admin-password": password
-                },
-                body: JSON.stringify({
-                    name,
-                    price: Number(price),
-                    category,
-                    subcategory,
-                    description,
-                    image_url: uploadedUrls[0] || "",
-                    image_urls: uploadedUrls
-                })
-            });
-
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || "No autorizado o clave incorrecta");
-
-            setMessage(editingId ? "¡Producto actualizado con éxito!" : "¡Producto guardado exitosamente!");
-            cancelEdit();
-            fetchProducts();
-        } catch (err: any) {
-            setError(true);
-            setMessage(err.message || "Ocurrió un error");
-        } finally {
-            setBusy(false);
+        } catch {
+            alert("Error al conectar con el servidor.");
         }
     }
 
-    // PANTALLA DE BLOQUEO DE SEGURIDAD
-    if (!isAuthenticated) {
-        return (
-            <main className="min-h-screen bg-gradient-to-br from-rose-50 to-white flex items-center justify-center p-5">
-                <div className="bg-white rounded-3xl shadow-xl border border-pink-100 p-8 max-w-md w-full text-center">
-                    <div className="w-16 h-16 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Lock size={32} />
-                    </div>
-                    <div className="brand-script text-4xl text-pink-600">Stefmol</div>
-                    <h1 className="text-xl font-bold text-slate-800 mt-2 mb-6">Acceso Privado Administrador</h1>
+    const currentSubcategories = categoryStructure.find((c) => c.name === category)?.subcategories || [];
 
-                    <form onSubmit={handleLogin} className="space-y-4">
-                        <input
-                            required
-                            type="password"
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                            className="w-full border rounded-xl p-3 focus:outline-pink-500 text-center text-lg"
-                            placeholder="Contraseña de administrador"
-                        />
-                        <button
-                            type="submit"
-                            className="w-full rounded-xl pink-gradient text-white font-bold py-3.5 shadow-lg shadow-pink-500/20 cursor-pointer"
-                        >
-                            Ingresar al panel
-                        </button>
-                    </form>
-
-                    <div className="mt-6">
-                        <Link href="/" className="text-xs text-gray-500 hover:underline">
-                            ← Volver a la tienda
-                        </Link>
-                    </div>
-                </div>
-            </main>
-        );
-    }
-
-    const currentCategoryObj = categoryStructure.find(c => c.name === category);
-
-    // PANEL DE ADMINISTRACIÓN (SOLO VISIBLE CON CLAVE)
     return (
-        <main className="min-h-screen bg-gradient-to-br from-rose-50 to-white p-5 md:p-10">
-            <div className="max-w-3xl mx-auto">
-                <div className="flex items-center justify-between mb-7">
-                    <Link href="/" className="inline-flex items-center gap-2 text-pink-700 hover:underline">
-                        <ArrowLeft size={18} /> Volver a la tienda
-                    </Link>
-                    <button
-                        onClick={handleLogout}
-                        className="inline-flex items-center gap-2 text-xs bg-red-50 text-red-600 px-3 py-2 rounded-xl font-semibold hover:bg-red-100 transition-colors cursor-pointer"
-                    >
-                        <LogOut size={14} /> Cerrar sesión
-                    </button>
+        <main className="min-h-screen bg-[#FAF0EE] text-[#3B3B3B] p-4 md:p-8">
+            <div className="max-w-5xl mx-auto space-y-8">
+
+                {/* ENCABEZADO ADMIN */}
+                <div className="flex items-center justify-between bg-gradient-to-r from-[#3B3B3B] via-[#1A1A1A] to-[#000000] p-6 rounded-3xl text-white shadow-xl border border-[#CFA18D]/30">
+                    <div>
+                        <a href="/" className="inline-flex items-center gap-2 text-xs text-[#CFA18D] hover:text-white font-bold mb-2 transition-colors">
+                            <ArrowLeft size={16} /> Volver a la Tienda
+                        </a>
+                        <h1 className="brand-script text-4xl md:text-5xl rose-gold-text">Administración Stefmol</h1>
+                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión de Catálogo y Productos</p>
+                    </div>
                 </div>
 
-                {/* FORMULARIO */}
-                <div className="bg-white rounded-3xl shadow-xl border border-pink-100 p-6 md:p-9 mb-10">
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <div className="brand-script text-4xl text-pink-600">Stefmol</div>
-                            <h1 className="text-2xl font-black mt-2">
-                                {editingId ? "✏️ Editando Producto" : "Administrar productos"}
-                            </h1>
-                        </div>
+                {/* FORMULARIO AGREGAR / EDITAR */}
+                <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-3xl shadow-lg border border-[#F5D9D6] space-y-6">
+                    <div className="flex items-center justify-between border-b border-[#F5D9D6] pb-4">
+                        <h2 className="text-xl font-bold text-[#3B3B3B] flex items-center gap-2">
+                            <Sparkles size={20} className="text-[#B76E79]" />
+                            {editingId ? "Editar Producto" : "Agregar Nuevo Producto"}
+                        </h2>
                         {editingId && (
                             <button
                                 type="button"
-                                onClick={cancelEdit}
-                                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-xl font-semibold cursor-pointer"
+                                onClick={resetForm}
+                                className="text-xs text-red-600 hover:underline font-bold flex items-center gap-1 cursor-pointer"
                             >
-                                Cancelar edición
+                                <X size={14} /> Cancelar Edición
                             </button>
                         )}
                     </div>
 
-                    <form onSubmit={submit} className="mt-7 space-y-5">
-                        <div>
-                            <label className="block text-sm font-semibold mb-2">Nombre del producto</label>
+                    <div className="grid md:grid-cols-2 gap-4">
+
+                        {/* NOMBRE (ACEPTA EMOJIS) */}
+                        <div className="md:col-span-2">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
+                                Nombre del Producto (puedes incluir emojis ✨🔥)
+                            </label>
                             <input
-                                required
+                                type="text"
                                 value={name}
-                                onChange={e => setName(e.target.value)}
-                                className="w-full border rounded-xl p-3 focus:outline-pink-500"
-                                placeholder="Ej. Vibrador Conejito 12 modos"
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="Ej: Vibrador Varita Mágica 💖 10 Modos"
+                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
+                                required
                             />
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div>
-                                <label className="block text-sm font-semibold mb-2">Precio (COP)</label>
-                                <input
-                                    required
-                                    min="0"
-                                    type="number"
-                                    value={price}
-                                    onChange={e => setPrice(e.target.value)}
-                                    className="w-full border rounded-xl p-3 focus:outline-pink-500"
-                                    placeholder="89900"
-                                />
-                            </div>
+                        {/* PRECIO */}
+                        <div>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
+                                Precio (COP)
+                            </label>
+                            <input
+                                type="number"
+                                value={price}
+                                onChange={(e) => setPrice(e.target.value)}
+                                placeholder="Ej: 89900"
+                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
+                                required
+                            />
+                        </div>
 
+                        {/* CATEGORÍA */}
+                        <div>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
+                                Categoría Principal
+                            </label>
+                            <select
+                                value={category}
+                                onChange={(e) => {
+                                    setCategory(e.target.value);
+                                    setSubcategory("");
+                                }}
+                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
+                            >
+                                {categoryStructure.map((c) => (
+                                    <option key={c.name} value={c.name}>
+                                        {c.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* SUBCATEGORÍA */}
+                        {currentSubcategories.length > 0 && (
                             <div>
-                                <label className="block text-sm font-semibold mb-2">Categoría principal</label>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
+                                    Subcategoría
+                                </label>
                                 <select
-                                    value={category}
-                                    onChange={e => handleCategoryChange(e.target.value)}
-                                    className="w-full border rounded-xl p-3 bg-white focus:outline-pink-500"
+                                    value={subcategory}
+                                    onChange={(e) => setSubcategory(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
                                 >
-                                    {categoryStructure.map(c => (
-                                        <option key={c.name} value={c.name}>{c.name}</option>
+                                    <option value="">-- Sin subcategoría --</option>
+                                    {currentSubcategories.map((sub) => (
+                                        <option key={sub} value={sub}>
+                                            {sub}
+                                        </option>
                                     ))}
                                 </select>
                             </div>
+                        )}
 
-                            <div>
-                                <label className="block text-sm font-semibold mb-2">Subsección</label>
-                                <select
-                                    value={subcategory}
-                                    disabled={!currentCategoryObj || currentCategoryObj.subcategories.length === 0}
-                                    onChange={e => setSubcategory(e.target.value)}
-                                    className="w-full border rounded-xl p-3 bg-white disabled:bg-gray-100 disabled:text-gray-400 focus:outline-pink-500"
-                                >
-                                    {currentCategoryObj && currentCategoryObj.subcategories.length > 0 ? (
-                                        currentCategoryObj.subcategories.map(s => (
-                                            <option key={s} value={s}>{s}</option>
-                                        ))
-                                    ) : (
-                                        <option value="">Sin subsecciones</option>
-                                    )}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-semibold mb-2">Descripción</label>
-                            <textarea
-                                value={description}
-                                onChange={e => setDescription(e.target.value)}
-                                className="w-full border rounded-xl p-3 min-h-24 focus:outline-pink-500"
-                                placeholder="Características, tallas, material…"
+                        {/* URL DE IMAGEN */}
+                        <div className={currentSubcategories.length > 0 ? "" : "md:col-span-2"}>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
+                                URL de la Imagen (Link externo)
+                            </label>
+                            <input
+                                type="url"
+                                value={imageUrl}
+                                onChange={(e) => setImageUrl(e.target.value)}
+                                placeholder="https://ejemplo.com/imagen.jpg"
+                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
                             />
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-semibold mb-2">Fotos del producto</label>
-                            <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-pink-300 bg-pink-50 rounded-2xl p-6 text-center cursor-pointer hover:bg-pink-100/85 transition-colors">
-                                <ImagePlus size={34} className="text-pink-600" />
-                                <span className="font-semibold text-slate-800">Toca para agregar más imágenes</span>
-                                <span className="text-xs text-gray-500">JPG, PNG, WEBP</span>
-                                <input
-                                    type="file"
-                                    multiple
-                                    accept="image/*"
-                                    onChange={e => handleFileSelect(e.target.files)}
-                                    className="sr-only"
-                                />
+                        {/* DESCRIPCIÓN */}
+                        <div className="md:col-span-2">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
+                                Descripción del Producto
                             </label>
-
-                            {existingImages.length > 0 && (
-                                <div className="mt-4">
-                                    <p className="text-xs font-bold text-gray-500 mb-2">Imágenes actuales:</p>
-                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                                        {existingImages.map((src, index) => (
-                                            <div key={`ex-${index}`} className="relative group rounded-xl overflow-hidden border border-gray-200 aspect-square bg-gray-50">
-                                                <img src={src} alt="Actual" className="w-full h-full object-cover" />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeExistingImage(index)}
-                                                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 shadow-md hover:bg-red-700 transition-colors cursor-pointer"
-                                                >
-                                                    <X size={14} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {previews.length > 0 && (
-                                <div className="mt-4">
-                                    <p className="text-xs font-bold text-gray-500 mb-2">Nuevas imágenes a subir:</p>
-                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                                        {previews.map((src, index) => (
-                                            <div key={`new-${index}`} className="relative group rounded-xl overflow-hidden border border-pink-200 aspect-square bg-pink-50">
-                                                <img src={src} alt="Nueva" className="w-full h-full object-cover" />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeNewImage(index)}
-                                                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 shadow-md hover:bg-red-700 transition-colors cursor-pointer"
-                                                >
-                                                    <X size={14} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                            <textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder="Escribe detalles del producto, materiales, dimensiones, modos de uso..."
+                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30 min-h-20"
+                            />
                         </div>
 
+                        {/* CHECKBOX PROMOCIÓN */}
+                        <div className="md:col-span-2 flex items-center gap-3 bg-[#F5D9D6]/30 p-4 rounded-2xl border border-[#CFA18D]/30">
+                            <input
+                                type="checkbox"
+                                id="promoCheck"
+                                checked={promo}
+                                onChange={(e) => setPromo(e.target.checked)}
+                                className="w-5 h-5 accent-[#B76E79] cursor-pointer"
+                            />
+                            <label htmlFor="promoCheck" className="text-sm font-bold text-[#3B3B3B] cursor-pointer select-none">
+                                Marcar como "Promoción del Mes" (Aparecerá en el banner principal y en ofertas especiales ✨)
+                            </label>
+                        </div>
+
+                    </div>
+
+                    {/* BOTÓN ALTA VISIBILIDAD DE GUARDADO / ACTUALIZADO */}
+                    <div className="pt-2">
                         <button
-                            disabled={busy}
-                            className="w-full rounded-xl pink-gradient text-white font-bold py-4 flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer shadow-lg shadow-pink-500/20"
+                            type="submit"
+                            className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-base uppercase tracking-wider shadow-xl hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border border-white/20 cursor-pointer"
                         >
-                            {busy ? (
+                            {editingId ? (
                                 <>
-                                    <LoaderCircle className="animate-spin" /> Guardando cambios…
+                                    <Check size={20} /> Guardar Cambios del Producto
                                 </>
                             ) : (
                                 <>
-                                    <PlusCircle /> {editingId ? "Actualizar producto" : "Guardar producto"}
+                                    <Plus size={20} /> Guardar y Publicar Producto
                                 </>
                             )}
                         </button>
+                    </div>
+                </form>
 
-                        {message && (
-                            <p className={`rounded-xl p-3 text-sm flex items-center gap-2 ${error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
-                                {!error && <CheckCircle2 size={18} />}
-                                {message}
-                            </p>
-                        )}
-                    </form>
-                </div>
+                {/* LISTADO DE PRODUCTOS EXISTENTES */}
+                <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg border border-[#F5D9D6] space-y-4">
+                    <h3 className="text-lg font-bold text-[#3B3B3B]">
+                        Productos Publicados ({products.length})
+                    </h3>
 
-                {/* INVENTARIO */}
-                <div className="bg-white rounded-3xl shadow-xl border border-pink-100 p-6 md:p-9">
-                    <h2 className="text-xl font-black mb-4">Inventario de Productos ({products.length})</h2>
-                    <div className="space-y-3">
-                        {products.map(p => {
-                            const thumb = p.image_urls?.[0] || p.image_url;
-                            return (
-                                <div key={p.id} className="flex items-center justify-between gap-4 p-3 border border-gray-100 rounded-2xl bg-gray-50/50 hover:bg-white transition-all">
-                                    <div className="flex items-center gap-3">
-                                        {thumb ? (
-                                            <img src={thumb} alt={p.name} className="w-12 h-12 rounded-xl object-cover border" />
-                                        ) : (
-                                            <div className="w-12 h-12 rounded-xl bg-pink-100 flex items-center justify-center text-pink-600 font-bold text-xs">Sin foto</div>
-                                        )}
+                    {loading ? (
+                        <p className="text-sm text-gray-500 py-4">Cargando lista de productos…</p>
+                    ) : !products.length ? (
+                        <p className="text-sm text-gray-500 py-4">Aún no hay productos registrados.</p>
+                    ) : (
+                        <div className="divide-y divide-gray-100">
+                            {products.map((p) => (
+                                <div key={p.id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-16 h-16 rounded-xl bg-[#FAF0EE] border border-[#F5D9D6] overflow-hidden flex items-center justify-center shrink-0">
+                                            {p.image_url ? (
+                                                <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <ImageIcon size={24} className="text-[#B76E79]" />
+                                            )}
+                                        </div>
+
                                         <div>
-                                            <h4 className="font-bold text-sm text-slate-900">{p.name}</h4>
-                                            <p className="text-xs text-pink-600 font-semibold">${p.price?.toLocaleString()} COP</p>
+                                            <h4 className="font-bold text-[#3B3B3B] text-base flex items-center gap-2">
+                                                {p.name}
+                                                {p.promo && (
+                                                    <span className="bg-[#B76E79] text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">
+                                                        Promo
+                                                    </span>
+                                                )}
+                                            </h4>
+                                            <p className="text-xs text-gray-500">
+                                                {p.category} {p.subcategory ? `· ${p.subcategory}` : ""}
+                                            </p>
+                                            <p className="text-sm font-black text-[#B76E79] mt-0.5">
+                                                ${new Intl.NumberFormat("es-CO").format(p.price)} COP
+                                            </p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
+
+                                    <div className="flex items-center gap-2 self-end sm:self-center">
                                         <button
-                                            onClick={() => startEdit(p)}
-                                            className="bg-blue-50 text-blue-600 p-2.5 rounded-xl hover:bg-blue-100 transition-colors cursor-pointer"
-                                            title="Editar producto"
+                                            onClick={() => handleEdit(p)}
+                                            className="py-2 px-4 rounded-xl bg-[#FAF0EE] hover:bg-[#F5D9D6] text-[#B76E79] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-[#CFA18D]/30"
                                         >
-                                            <Edit3 size={16} />
+                                            <Edit3 size={15} /> Editar
                                         </button>
                                         <button
                                             onClick={() => handleDelete(p.id)}
-                                            className="bg-red-50 text-red-600 p-2.5 rounded-xl hover:bg-red-100 transition-colors cursor-pointer"
-                                            title="Eliminar producto"
+                                            className="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-rose-200"
                                         >
-                                            <Trash2 size={16} />
+                                            <Trash2 size={15} /> Eliminar
                                         </button>
                                     </div>
+
                                 </div>
-                            );
-                        })}
-                    </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
             </div>
