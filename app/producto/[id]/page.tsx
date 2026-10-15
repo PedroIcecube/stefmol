@@ -12,6 +12,7 @@ type Product = {
     name: string;
     description: string | null;
     category: string | null;
+    subcategory?: string | null;
     price: number;
     image_url: string | null;
     promo?: boolean;
@@ -21,27 +22,69 @@ type CartItem = Product & { quantity: number };
 
 const money = (n: number) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
 
-const fallback: Product[] = [
-    { id: "demo1", name: "Vibrador Conejito 12 modos", description: "Diseño ergonómico · 12 modos", category: "Juguetes", price: 89900, image_url: "", promo: true },
-    { id: "demo2", name: "Estimulador de succión", description: "Diseño compacto", category: "Juguetes", price: 99900, image_url: "", promo: false },
-    { id: "demo3", name: "Plug anal con joya", description: "Material suave", category: "Lencería y BDSM", price: 59900, image_url: "", promo: true },
-    { id: "demo4", name: "Conjunto lencería de encaje", description: "Consulta las tallas disponibles", category: "Lencería y BDSM", price: 79900, image_url: "", promo: false },
-    { id: "demo5", name: "Lubricante íntimo base agua 120 ml", description: "Presentación de 120 ml", category: "Placeres y sensaciones", price: 39900, image_url: "", promo: true },
-    { id: "demo6", name: "Kit de bienestar íntimo", description: "Pregunta por disponibilidad", category: "Placeres y sensaciones", price: 119900, image_url: "", promo: true }
+// Estructura de categorías y sus subsecciones
+const categoryStructure = [
+    {
+        name: "Promociones del Mes",
+        subcategories: []
+    },
+    {
+        name: "Juguetes",
+        subcategories: [
+            "Anillos vibradores",
+            "Dildos",
+            "Juegos eróticos",
+            "Masturbadores",
+            "Plugs anales",
+            "BDSM",
+            "Succionadores",
+            "Vibradores"
+        ]
+    },
+    {
+        name: "Placer y Sensaciones",
+        subcategories: [
+            "Anal",
+            "Cremas fusión",
+            "Estrechante",
+            "Feromonas",
+            "Garganta profunda",
+            "Lubricantes",
+            "Multiorgasmo",
+            "Potenciador",
+            "Comestibles",
+            "Retardantes"
+        ]
+    },
+    {
+        name: "Lencería",
+        subcategories: [
+            "Talla XS",
+            "Talla S",
+            "Talla M",
+            "Talla L",
+            "Talla XL",
+            "Talla XXL",
+            "Mallas",
+            "Cuero"
+        ]
+    }
 ];
 
-// Secciones reducidas exactamente a las del menú (sin "Todos")
-const menuSections = [
-    { name: "Promociones del Mes", cat: "Promociones del Mes" },
-    { name: "Juguetes", cat: "Juguetes" },
-    { name: "Placeres y sensaciones", cat: "Placeres y sensaciones" },
-    { name: "Lencería y BDSM", cat: "Lencería y BDSM" }
+const fallback: Product[] = [
+    { id: "demo1", name: "Vibrador Conejito 12 modos", description: "Diseño ergonómico · 12 modos", category: "Juguetes", subcategory: "Vibradores", price: 89900, image_url: "", promo: true },
+    { id: "demo2", name: "Estimulador de succión", description: "Diseño compacto", category: "Juguetes", subcategory: "Succionadores", price: 99900, image_url: "", promo: false },
+    { id: "demo3", name: "Plug anal con joya", description: "Material suave", category: "Juguetes", subcategory: "Plugs anales", price: 59900, image_url: "", promo: true },
+    { id: "demo4", name: "Conjunto lencería de encaje", description: "Consulta las tallas disponibles", category: "Lencería", subcategory: "Talla M", price: 79900, image_url: "", promo: false },
+    { id: "demo5", name: "Lubricante íntimo base agua 120 ml", description: "Presentación de 120 ml", category: "Placer y Sensaciones", subcategory: "Lubricantes", price: 39900, image_url: "", promo: true },
+    { id: "demo6", name: "Kit de bienestar íntimo", description: "Pregunta por disponibilidad", category: "Placer y Sensaciones", subcategory: "Multiorgasmo", price: 119900, image_url: "", promo: true }
 ];
 
 export default function Home() {
     const [products, setProducts] = useState<Product[]>(fallback);
     const [cart, setCart] = useState<CartItem[]>([]);
-    const [category, setCategory] = useState("Promociones del Mes");
+    const [activeCategory, setActiveCategory] = useState("Promociones del Mes");
+    const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null);
     const [search, setSearch] = useState("");
     const [cartOpen, setCartOpen] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -57,15 +100,30 @@ export default function Home() {
             .finally(() => setLoading(false));
     }, []);
 
+    // Obtener subcategorías de la categoría activa
+    const currentSubcategories = useMemo(() => {
+        const catObj = categoryStructure.find(c => c.name === activeCategory);
+        return catObj ? catObj.subcategories : [];
+    }, [activeCategory]);
+
     const visible = useMemo(() => {
         return products.filter(p => {
-            const matchCat = category === "Promociones del Mes"
+            // Coincidencia por categoría principal
+            const matchCat = activeCategory === "Promociones del Mes"
                 ? p.promo === true
-                : p.category === category;
+                : p.category === activeCategory;
+
+            // Coincidencia por subcategoría si hay una seleccionada
+            const matchSubcat = activeSubcategory
+                ? p.subcategory === activeSubcategory
+                : true;
+
+            // Coincidencia por búsqueda
             const matchSearch = `${p.name} ${p.description ?? ""}`.toLowerCase().includes(search.toLowerCase());
-            return matchCat && matchSearch;
+
+            return matchCat && matchSubcat && matchSearch;
         });
-    }, [products, category, search]);
+    }, [products, activeCategory, activeSubcategory, search]);
 
     const total = cart.reduce((s, p) => s + p.price * p.quantity, 0);
 
@@ -80,6 +138,14 @@ export default function Home() {
 
     function qty(id: string, delta: number) {
         setCart(old => old.map(p => p.id === id ? { ...p, quantity: p.quantity + delta } : p).filter(p => p.quantity > 0));
+    }
+
+    function handleSelectCategory(catName: string, subName: string | null = null) {
+        setActiveCategory(catName);
+        setActiveSubcategory(subName);
+        setMenuOpen(false);
+        const el = document.getElementById("catalogo");
+        if (el) el.scrollIntoView({ behavior: "smooth" });
     }
 
     function checkout() {
@@ -132,7 +198,7 @@ export default function Home() {
                 </div>
             </header>
 
-            {/* MENÚ LATERAL DRAWER */}
+            {/* MENÚ LATERAL DRAWER CON SUBSECCIONES ACCESIBLES */}
             {menuOpen && (
                 <div className="fixed inset-0 z-50 flex">
                     <div className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity" onClick={() => setMenuOpen(false)} />
@@ -154,27 +220,38 @@ export default function Home() {
                                     type="text"
                                     value={search}
                                     onChange={e => setSearch(e.target.value)}
-                                    placeholder="Busca juguetes o marcas..."
+                                    placeholder="Busca productos..."
                                     className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#FAF5F0] border border-[#F2E8DF] text-sm focus:outline-none focus:border-pink-500 text-slate-800 placeholder:text-gray-400"
                                 />
                             </div>
                         </div>
 
-                        <div className="flex-1 px-4 py-2 space-y-1">
-                            {menuSections.map((item, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => {
-                                        setCategory(item.cat);
-                                        setMenuOpen(false);
-                                        const el = document.getElementById("catalogo");
-                                        if (el) el.scrollIntoView({ behavior: "smooth" });
-                                    }}
-                                    className="w-full flex items-center justify-between py-3 px-3 rounded-xl text-slate-900 font-bold text-sm hover:bg-pink-50 border-b border-gray-100 transition-colors text-left"
-                                >
-                                    <span>{item.name}</span>
-                                    <ChevronRight size={18} className="text-gray-400" />
-                                </button>
+                        <div className="flex-1 px-4 py-2 space-y-3">
+                            {categoryStructure.map((cat, index) => (
+                                <div key={index} className="border-b border-gray-100 pb-2">
+                                    <button
+                                        onClick={() => handleSelectCategory(cat.name, null)}
+                                        className="w-full flex items-center justify-between py-2 px-3 rounded-xl text-slate-900 font-bold text-sm hover:bg-pink-50 transition-colors text-left"
+                                    >
+                                        <span>{cat.name}</span>
+                                        <ChevronRight size={18} className="text-gray-400" />
+                                    </button>
+
+                                    {/* SUBSECCIONES EN MENÚ */}
+                                    {cat.subcategories.length > 0 && (
+                                        <div className="ml-4 mt-1 space-y-1">
+                                            {cat.subcategories.map((sub, sIdx) => (
+                                                <button
+                                                    key={sIdx}
+                                                    onClick={() => handleSelectCategory(cat.name, sub)}
+                                                    className="w-full text-left py-1.5 px-3 text-xs text-slate-600 hover:text-pink-600 hover:bg-pink-50/50 rounded-lg transition-colors"
+                                                >
+                                                    {sub}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             ))}
                         </div>
 
@@ -200,7 +277,7 @@ export default function Home() {
                 </div>
             )}
 
-            {/* SECCIÓN HERO / PORTADA */}
+            {/* SECCIÓN HERO */}
             <section className="hero-bg text-white">
                 <div className="mx-auto max-w-7xl px-6 py-14 md:py-24 grid md:grid-cols-2 items-center gap-8">
                     <div className="text-center flex flex-col items-center justify-center">
@@ -213,11 +290,7 @@ export default function Home() {
                     </div>
 
                     <div
-                        onClick={() => {
-                            setCategory("Promociones del Mes");
-                            const el = document.getElementById("catalogo");
-                            if (el) el.scrollIntoView({ behavior: "smooth" });
-                        }}
+                        onClick={() => handleSelectCategory("Promociones del Mes", null)}
                         className="rounded-3xl border border-pink-300/30 bg-gradient-to-br from-pink-500/20 to-black/50 min-h-64 md:min-h-80 flex items-center justify-center text-center p-8 cursor-pointer hover:border-pink-400 transition-all shadow-xl hover:scale-[1.01] group"
                     >
                         <div>
@@ -249,7 +322,9 @@ export default function Home() {
                 <div className="flex flex-wrap justify-between items-end gap-4 mb-6">
                     <div>
                         <p className="text-pink-600 font-semibold text-sm tracking-wider">ENCUENTRA TUS FAVORITOS</p>
-                        <h2 className="text-3xl font-black text-slate-900">{category}</h2>
+                        <h2 className="text-3xl font-black text-slate-900">
+                            {activeCategory} {activeSubcategory ? `· ${activeSubcategory}` : ""}
+                        </h2>
                     </div>
                     <div className="relative">
                         <Search className="absolute left-3 top-3 text-gray-400" size={18} />
@@ -262,13 +337,16 @@ export default function Home() {
                     </div>
                 </div>
 
-                {/* Chips / Botones con las mismas secciones del menú */}
-                <div className="flex gap-2 overflow-x-auto pb-4">
-                    {menuSections.map(s => (
+                {/* CHIPS DE CATEGORÍAS PRINCIPALES */}
+                <div className="flex gap-2 overflow-x-auto pb-3">
+                    {categoryStructure.map(s => (
                         <button
-                            key={s.cat}
-                            onClick={() => setCategory(s.cat)}
-                            className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all ${category === s.cat
+                            key={s.name}
+                            onClick={() => {
+                                setActiveCategory(s.name);
+                                setActiveSubcategory(null);
+                            }}
+                            className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all ${activeCategory === s.name
                                 ? "pink-gradient text-white shadow-md shadow-pink-500/20"
                                 : "bg-white border border-gray-200 text-slate-700 hover:bg-gray-50"
                                 }`}
@@ -277,6 +355,33 @@ export default function Home() {
                         </button>
                     ))}
                 </div>
+
+                {/* CHIPS DE SUBSECCIONES (SI EXISTEN) */}
+                {currentSubcategories.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto pb-4 mt-1 pt-2 border-t border-gray-100">
+                        <button
+                            onClick={() => setActiveSubcategory(null)}
+                            className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${activeSubcategory === null
+                                ? "bg-slate-900 text-white"
+                                : "bg-gray-100 text-slate-600 hover:bg-gray-200"
+                                }`}
+                        >
+                            Ver todos en {activeCategory}
+                        </button>
+                        {currentSubcategories.map(sub => (
+                            <button
+                                key={sub}
+                                onClick={() => setActiveSubcategory(sub)}
+                                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${activeSubcategory === sub
+                                    ? "bg-pink-600 text-white shadow-sm"
+                                    : "bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-100"
+                                    }`}
+                            >
+                                {sub}
+                            </button>
+                        ))}
+                    </div>
+                )}
 
                 {loading && <p className="text-gray-500 py-3">Cargando catálogo…</p>}
 
@@ -341,7 +446,7 @@ export default function Home() {
                     })}
                 </div>
 
-                {!visible.length && <p className="py-12 text-center text-gray-500">No encontramos productos en esta categoría.</p>}
+                {!visible.length && <p className="py-12 text-center text-gray-500">No encontramos productos en esta categoría o subsección.</p>}
             </section>
 
             {/* FOOTER */}
