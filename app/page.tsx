@@ -206,8 +206,8 @@ export default function Home() {
           </button>
 
           <a href="#" className="text-center">
-            <div className="brand-script text-4xl md:text-5xl rose-gold-text drop-shadow-sm">Stefmol</div>
-            <div className="text-[9px] tracking-[.3em] text-[#CFA18D] font-bold uppercase">BOUTIQUE ERÓTICA</div>
+            <div className="brand-script text-5xl md:text-6xl rose-gold-text drop-shadow-sm leading-none">Stefmol</div>
+            <div className="text-[9px] tracking-[.3em] text-[#CFA18D] font-bold uppercase mt-1">BOUTIQUE ERÓTICA</div>
           </a>
 
           <div className="flex gap-4 items-center">
@@ -234,8 +234,8 @@ export default function Home() {
 
             <div className="flex items-center justify-between p-4 border-b border-[#F5D9D6] bg-[#FAF0EE]">
               <div>
-                <div className="brand-script text-2xl rose-gold-text">Stefmol</div>
-                <div className="text-[8px] tracking-[.2em] text-[#B76E79] font-bold uppercase">BOUTIQUE ERÓTICA</div>
+                <div className="brand-script text-3xl rose-gold-text leading-none">Stefmol</div>
+                <div className="text-[8px] tracking-[.2em] text-[#B76E79] font-bold uppercase mt-0.5">BOUTIQUE ERÓTICA</div>
               </div>
               <button onClick={() => setMenuOpen(false)} className="p-2 rounded-full hover:bg-gray-200/60 text-[#3B3B3B] transition-colors" aria-label="Cerrar">
                 <X size={22} />
@@ -334,10 +334,10 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-6 py-14 md:py-24 grid md:grid-cols-2 items-center gap-8">
           <div className="text-center flex flex-col items-center justify-center">
             <p className="text-[#CFA18D] italic text-xl md:text-2xl font-light">Explora tu lado más</p>
-            <h1 className="brand-script text-7xl md:text-9xl rose-gold-shine leading-tight drop-shadow-2xl">
+            <h1 className="brand-script text-8xl md:text-[10rem] rose-gold-shine leading-tight drop-shadow-2xl my-2">
               Hot ♡
             </h1>
-            <p className="tracking-[.25em] text-xs md:text-sm mt-2 text-[#F5D9D6] uppercase font-medium">
+            <p className="tracking-[.25em] text-xs md:text-sm text-[#F5D9D6] uppercase font-medium">
               JUGUETES, LENCERÍA,<br /> ACCESORIOS Y MUCHO MÁS
             </p>
             <a href="#catalogo" className="inline-flex items-center gap-4 rounded-full bg-gradient-to-r from-[#B76E79] to-[#CFA18D] px-8 py-4 mt-8 font-bold text-white shadow-lg shadow-black/40 hover:scale-105 active:scale-95 transition-all">
@@ -363,8 +363,8 @@ export default function Home() {
 
             <div className="relative z-10">
               <Heart className="mx-auto text-[#CFA18D] group-hover:scale-110 transition-transform drop-shadow-md" size={52} />
-              <p className="brand-script text-4xl md:text-5xl rose-gold-text mt-4 drop-shadow-lg">Promociones del Mes</p>
-              <p className="text-xs text-[#F5D9D6] mt-3 font-semibold uppercase tracking-wider bg-black/70 backdrop-blur-xs px-4 py-1.5 rounded-full inline-block border border-[#CFA18D]/40 shadow-md">
+              <p className="brand-script text-5xl md:text-6xl rose-gold-text mt-4 drop-shadow-lg leading-none">Promociones del Mes</p>
+              <p className="text-xs text-[#F5D9D6] mt-4 font-semibold uppercase tracking-wider bg-black/70 backdrop-blur-xs px-4 py-1.5 rounded-full inline-block border border-[#CFA18D]/40 shadow-md">
                 Haz clic aquí para ver ofertas especiales ✨
               </p>
             </div>

@@ -2,7 +2,7 @@
 
 @layer utilities {
     .brand-script {
-        font-family: var(--font-playfair), Georgia, cursive, serif;
+        font-family: var(--font-italianno), 'Italianno', cursive, serif;
     }
 }
 
