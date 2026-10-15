@@ -22,12 +22,12 @@ type CartItem = Product & { quantity: number };
 const money = (n: number) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
 
 const fallback: Product[] = [
-  { id: "demo1", name: "Vibrador Conejito 12 modos", description: "Diseño ergonómico · 12 modos", category: "Vibradores", price: 89900, image_url: "", promo: true },
-  { id: "demo2", name: "Estimulador de succión", description: "Diseño compacto", category: "Estimuladores", price: 99900, image_url: "", promo: false },
-  { id: "demo3", name: "Plug anal con joya", description: "Material suave", category: "Anales", price: 59900, image_url: "", promo: true },
-  { id: "demo4", name: "Conjunto lencería de encaje", description: "Consulta las tallas disponibles", category: "Lencería", price: 79900, image_url: "", promo: false },
-  { id: "demo5", name: "Lubricante íntimo base agua 120 ml", description: "Presentación de 120 ml", category: "Lubricantes", price: 39900, image_url: "", promo: true },
-  { id: "demo6", name: "Kit de bienestar íntimo", description: "Pregunta por disponibilidad", category: "Kits", price: 119900, image_url: "", promo: true }
+  { id: "demo1", name: "Vibrador Conejito 12 modos", description: "Diseño ergonómico · 12 modos de vibración potente y silenciosa. Fabricado en silicona médica suave al tacto.", category: "Vibradores", price: 89900, image_url: "", promo: true },
+  { id: "demo2", name: "Estimulador de succión", description: "Diseño compacto, tecnología de ondas sónicas para estimulación sin contacto directo.", category: "Estimuladores", price: 99900, image_url: "", promo: false },
+  { id: "demo3", name: "Plug anal con joya", description: "Material suave, base segura y diseño elegante con detalle de gema en la punta.", category: "Anales", price: 59900, image_url: "", promo: true },
+  { id: "demo4", name: "Conjunto lencería de encaje", description: "Consulta las tallas disponibles. Tela elástica y suave que se adapta perfectamente a tu silueta.", category: "Lencería", price: 79900, image_url: "", promo: false },
+  { id: "demo5", name: "Lubricante íntimo base agua 120 ml", description: "Presentación de 120 ml. Compatible con juguetes de silicona y preservativos, textura ligera no pegajosa.", category: "Lubricantes", price: 39900, image_url: "", promo: true },
+  { id: "demo6", name: "Kit de bienestar íntimo", description: "Pregunta por disponibilidad. Incluye elementos esenciales para consentirte o regalar en pareja.", category: "Kits", price: 119900, image_url: "", promo: true }
 ];
 
 const categories = ["Todos", "Promociones del Mes", "Vibradores", "Estimuladores", "Anales", "Kits", "Lencería", "Lubricantes", "Accesorios"];
@@ -42,6 +42,9 @@ export default function Home() {
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [addedId, setAddedId] = useState<string | null>(null);
+
+  // NUEVO: Estado para el producto seleccionado en el modal de detalle
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     fetch("/api/products")
@@ -128,7 +131,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* MENÚ LATERAL DRAWER (REFERENCIA) EN FONDO BLANCO / ROSADO */}
+      {/* MENÚ LATERAL DRAWER */}
       {menuOpen && (
         <div className="fixed inset-0 z-50 flex">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity" onClick={() => setMenuOpen(false)} />
@@ -159,13 +162,9 @@ export default function Home() {
             <div className="flex-1 px-4 py-2 space-y-1">
               {[
                 { name: "Promociones del Mes", cat: "Promociones del Mes" },
-                { name: "Nuevos", cat: "Todos" },
                 { name: "Juguetes", cat: "Juguetes" },
                 { name: "Lubricantes y bienestar", cat: "Lubricantes" },
-                { name: "Lencería y BDSM", cat: "Lencería" },
-                { name: "Marcas", cat: "Todos" },
-                { name: "Más vendidos", cat: "Todos" },
-                { name: "Blog", cat: "Todos" }
+                { name: "Lencería y BDSM", cat: "Lencería" }
               ].map((item, index) => (
                 <button
                   key={index}
@@ -208,8 +207,6 @@ export default function Home() {
       {/* SECCIÓN HERO / PORTADA CENTRADA */}
       <section className="hero-bg text-white">
         <div className="mx-auto max-w-7xl px-6 py-14 md:py-24 grid md:grid-cols-2 items-center gap-8">
-
-          {/* Columna Izquierda: Centrada */}
           <div className="text-center flex flex-col items-center justify-center">
             <p className="text-pink-300 italic text-xl md:text-2xl">Explora tu lado más</p>
             <h1 className="brand-script text-7xl md:text-9xl text-pink-400 leading-tight">Hot ♡</h1>
@@ -219,7 +216,6 @@ export default function Home() {
             </a>
           </div>
 
-          {/* Columna Derecha: Tarjeta Interactiva "Promociones del Mes" */}
           <div
             onClick={() => {
               setCategory("Promociones del Mes");
@@ -234,11 +230,10 @@ export default function Home() {
               <p className="text-xs text-pink-200/80 mt-3 font-semibold uppercase tracking-wider">Haz clic aquí para ver ofertas especiales ✨</p>
             </div>
           </div>
-
         </div>
       </section>
 
-      {/* TARJETAS INFORMATIVAS CON BLANCO Y SOMBRA */}
+      {/* TARJETAS INFORMATIVAS */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-7xl mx-auto px-5 -mt-5 relative z-10">
         {[
           { icon: <Truck className="text-pink-600" />, title: "Envíos discretos" },
@@ -295,13 +290,17 @@ export default function Home() {
             return (
               <article key={p.id} className="bg-white rounded-2xl p-3 soft-shadow flex flex-col justify-between border border-pink-100/50 hover:shadow-md transition-all">
                 <div>
-                  <div className="aspect-square rounded-xl bg-gradient-to-br from-pink-50 to-rose-100 overflow-hidden flex items-center justify-center relative">
+                  {/* IMAGEN CLICKEABLE: Abre el detalle del producto */}
+                  <div
+                    onClick={() => setSelectedProduct(p)}
+                    className="aspect-square rounded-xl bg-gradient-to-br from-pink-50 to-rose-100 overflow-hidden flex items-center justify-center relative cursor-pointer group"
+                  >
                     {p.image_url ? (
-                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
-                      <div className="text-center p-4">
+                      <div className="text-center p-4 group-hover:scale-105 transition-transform">
                         <Heart size={44} className="text-pink-400 mx-auto" />
-                        <p className="text-xs text-pink-700 mt-3 font-semibold">Imagen del producto</p>
+                        <p className="text-xs text-pink-700 mt-3 font-semibold">Ver detalle</p>
                       </div>
                     )}
                     {p.promo && (
@@ -310,14 +309,20 @@ export default function Home() {
                       </span>
                     )}
                   </div>
-                  <h3 className="font-semibold mt-3 leading-snug text-slate-900">{p.name}</h3>
+
+                  {/* NOMBRE CLICKEABLE TAMBIÉN */}
+                  <h3
+                    onClick={() => setSelectedProduct(p)}
+                    className="font-semibold mt-3 leading-snug text-slate-900 cursor-pointer hover:text-pink-600 transition-colors"
+                  >
+                    {p.name}
+                  </h3>
                   <p className="text-xs text-gray-500 mt-1 line-clamp-2">{p.description}</p>
                 </div>
 
                 <div>
                   <p className="text-pink-600 font-black text-lg mt-3">{money(p.price)}</p>
 
-                  {/* BOTÓN AGREGAR CON ANIMACIÓN Y SOMBRA */}
                   <button
                     onClick={() => add(p)}
                     className={`w-full rounded-xl p-3 mt-3 flex justify-center items-center gap-2 font-bold transition-all duration-300 transform active:scale-95 shadow-md ${isAdded
@@ -345,6 +350,65 @@ export default function Home() {
 
         {!visible.length && <p className="py-12 text-center text-gray-500">No encontramos productos con esa búsqueda.</p>}
       </section>
+
+      {/* NUEVO: MODAL / VENTANA DETALLE DE PRODUCTO */}
+      {selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setSelectedProduct(null)}
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="aspect-video sm:aspect-square bg-gradient-to-br from-pink-50 to-rose-100 flex items-center justify-center relative overflow-hidden">
+              {selectedProduct.image_url ? (
+                <img src={selectedProduct.image_url} alt={selectedProduct.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="text-center p-6">
+                  <Heart size={64} className="text-pink-400 mx-auto" />
+                  <p className="text-sm text-pink-700 mt-3 font-semibold">Stefmol · Vista detallada</p>
+                </div>
+              )}
+              {selectedProduct.promo && (
+                <span className="absolute top-4 left-4 bg-pink-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow">
+                  Promoción del Mes
+                </span>
+              )}
+            </div>
+
+            <div className="p-6">
+              <span className="text-xs font-bold text-pink-600 tracking-wider uppercase">{selectedProduct.category || "General"}</span>
+              <h3 className="text-2xl font-black text-slate-900 mt-1">{selectedProduct.name}</h3>
+              <p className="text-pink-600 font-black text-2xl mt-2">{money(selectedProduct.price)}</p>
+
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <h4 className="font-bold text-sm text-slate-800 mb-1">Descripción del producto:</h4>
+                <p className="text-sm text-slate-600 leading-relaxed">{selectedProduct.description || "Sin descripción detallada disponible."}</p>
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={() => {
+                    add(selectedProduct);
+                    setSelectedProduct(null);
+                  }}
+                  className="flex-1 rounded-full pink-gradient text-white py-3.5 font-bold flex justify-center items-center gap-2 shadow-lg shadow-pink-500/30 hover:scale-[1.02] active:scale-95 transition-all"
+                >
+                  <ShoppingCart size={18} /> Agregar al carrito
+                </button>
+                <button
+                  onClick={() => setSelectedProduct(null)}
+                  className="px-6 py-3.5 rounded-full border border-gray-200 font-semibold text-slate-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FOOTER */}
       <footer className="bg-[#0c060a] text-white px-5 py-10">
