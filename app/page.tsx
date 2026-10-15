@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Menu, Search, ShoppingCart, Heart, Truck, LockKeyhole,
   Headset, MessageCircle, Plus, Minus, Trash2,
-  ArrowRight, X, ChevronRight, CheckCircle2
+  ArrowRight, X, ChevronRight, ChevronDown, CheckCircle2
 } from "lucide-react";
 
 type Product = {
@@ -88,6 +88,10 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Estado para controlar qué categoría del menú lateral está expandida
+  const [expandedMenuCategory, setExpandedMenuCategory] = useState<string | null>("Juguetes");
+
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [addedId, setAddedId] = useState<string | null>(null);
@@ -108,17 +112,14 @@ export default function Home() {
 
   const visible = useMemo(() => {
     return products.filter(p => {
-      // Coincidencia por categoría principal
       const matchCat = activeCategory === "Promociones del Mes"
         ? p.promo === true
         : p.category === activeCategory;
 
-      // Coincidencia por subcategoría si hay una seleccionada
       const matchSubcat = activeSubcategory
         ? p.subcategory === activeSubcategory
         : true;
 
-      // Coincidencia por búsqueda
       const matchSearch = `${p.name} ${p.description ?? ""}`.toLowerCase().includes(search.toLowerCase());
 
       return matchCat && matchSubcat && matchSearch;
@@ -198,7 +199,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* MENÚ LATERAL DRAWER CON SUBSECCIONES ACCESIBLES */}
+      {/* MENÚ LATERAL DRAWER CON SUBSECCIONES DESPLEGABLES */}
       {menuOpen && (
         <div className="fixed inset-0 z-50 flex">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity" onClick={() => setMenuOpen(false)} />
@@ -226,33 +227,47 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex-1 px-4 py-2 space-y-3">
-              {categoryStructure.map((cat, index) => (
-                <div key={index} className="border-b border-gray-100 pb-2">
-                  <button
-                    onClick={() => handleSelectCategory(cat.name, null)}
-                    className="w-full flex items-center justify-between py-2 px-3 rounded-xl text-slate-900 font-bold text-sm hover:bg-pink-50 transition-colors text-left"
-                  >
-                    <span>{cat.name}</span>
-                    <ChevronRight size={18} className="text-gray-400" />
-                  </button>
+            <div className="flex-1 px-4 py-2 space-y-2">
+              {categoryStructure.map((cat, index) => {
+                const isExpanded = expandedMenuCategory === cat.name;
+                const hasSubs = cat.subcategories.length > 0;
 
-                  {/* SUBSECCIONES EN MENÚ */}
-                  {cat.subcategories.length > 0 && (
-                    <div className="ml-4 mt-1 space-y-1">
-                      {cat.subcategories.map((sub, sIdx) => (
-                        <button
-                          key={sIdx}
-                          onClick={() => handleSelectCategory(cat.name, sub)}
-                          className="w-full text-left py-1.5 px-3 text-xs text-slate-600 hover:text-pink-600 hover:bg-pink-50/50 rounded-lg transition-colors"
-                        >
-                          {sub}
-                        </button>
-                      ))}
+                return (
+                  <div key={index} className="border-b border-gray-100 pb-2">
+                    <div
+                      onClick={() => {
+                        handleSelectCategory(cat.name, null);
+                        if (hasSubs) {
+                          setExpandedMenuCategory(isExpanded ? null : cat.name);
+                        }
+                      }}
+                      className="w-full flex items-center justify-between py-2 px-3 rounded-xl text-slate-900 font-bold text-sm hover:bg-pink-50 transition-colors cursor-pointer"
+                    >
+                      <span>{cat.name}</span>
+                      {hasSubs && (
+                        <span>
+                          {isExpanded ? <ChevronDown size={18} className="text-pink-600" /> : <ChevronRight size={18} className="text-gray-400" />}
+                        </span>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {/* SUBSECCIONES DESPLEGABLES (SOLO SE MUESTRAN SI ESTA CATEGORÍA ESTÁ EXPANDIDA) */}
+                    {hasSubs && isExpanded && (
+                      <div className="ml-4 mt-1 space-y-1 bg-pink-50/40 p-2 rounded-xl border-l-2 border-pink-300">
+                        {cat.subcategories.map((sub, sIdx) => (
+                          <button
+                            key={sIdx}
+                            onClick={() => handleSelectCategory(cat.name, sub)}
+                            className="w-full text-left py-1.5 px-3 text-xs font-semibold text-slate-600 hover:text-pink-700 hover:bg-pink-100/60 rounded-lg transition-colors cursor-pointer"
+                          >
+                            • {sub}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="p-5 bg-[#FAF3F0] m-4 rounded-3xl border border-[#F3E6E0] space-y-3">
@@ -345,8 +360,9 @@ export default function Home() {
               onClick={() => {
                 setActiveCategory(s.name);
                 setActiveSubcategory(null);
+                setExpandedMenuCategory(s.name);
               }}
-              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all ${activeCategory === s.name
+              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all cursor-pointer ${activeCategory === s.name
                 ? "pink-gradient text-white shadow-md shadow-pink-500/20"
                 : "bg-white border border-gray-200 text-slate-700 hover:bg-gray-50"
                 }`}
@@ -361,7 +377,7 @@ export default function Home() {
           <div className="flex gap-2 overflow-x-auto pb-4 mt-1 pt-2 border-t border-gray-100">
             <button
               onClick={() => setActiveSubcategory(null)}
-              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${activeSubcategory === null
+              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${activeSubcategory === null
                 ? "bg-slate-900 text-white"
                 : "bg-gray-100 text-slate-600 hover:bg-gray-200"
                 }`}
@@ -372,7 +388,7 @@ export default function Home() {
               <button
                 key={sub}
                 onClick={() => setActiveSubcategory(sub)}
-                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${activeSubcategory === sub
+                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${activeSubcategory === sub
                   ? "bg-pink-600 text-white shadow-sm"
                   : "bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-100"
                   }`}
@@ -423,9 +439,9 @@ export default function Home() {
 
                   <button
                     onClick={() => add(p)}
-                    className={`w-full rounded-xl p-3 mt-3 flex justify-center items-center gap-2 font-bold transition-all duration-300 transform active:scale-95 shadow-md ${isAdded
-                        ? "bg-emerald-600 text-white scale-102 shadow-emerald-500/30"
-                        : "pink-gradient text-white shadow-pink-500/20 hover:shadow-pink-500/40"
+                    className={`w-full rounded-xl p-3 mt-3 flex justify-center items-center gap-2 font-bold transition-all duration-300 transform active:scale-95 shadow-md cursor-pointer ${isAdded
+                      ? "bg-emerald-600 text-white scale-102 shadow-emerald-500/30"
+                      : "pink-gradient text-white shadow-pink-500/20 hover:shadow-pink-500/40"
                       }`}
                   >
                     {isAdded ? (
@@ -465,7 +481,7 @@ export default function Home() {
           ))}
         </div>
         <p className="text-center text-xs text-white/50 mt-8">© {new Date().getFullYear()} Stefmol · Tienda para mayores de 18 años.</p>
-        <p className="text-center mt-3"><a className="text-pink-300 underline text-xs" href="/admin">Administrar productos</a></p>
+        <p className="text-center mt-3"><a className="text-pink-300 underline text-xs cursor-pointer" href="/admin">Administrar productos</a></p>
       </footer>
 
       {/* CARRITO / CHECKOUT DRAWER */}
@@ -475,7 +491,7 @@ export default function Home() {
             <div>
               <div className="flex items-center justify-between border-b pb-4">
                 <h2 className="text-2xl font-black">Mi carrito ({cart.reduce((s, p) => s + p.quantity, 0)})</h2>
-                <button onClick={() => setCartOpen(false)} aria-label="Cerrar" className="p-2 rounded-full hover:bg-gray-100"><X /></button>
+                <button onClick={() => setCartOpen(false)} aria-label="Cerrar" className="p-2 rounded-full hover:bg-gray-100 cursor-pointer"><X /></button>
               </div>
 
               {!cart.length ? (
@@ -494,10 +510,10 @@ export default function Home() {
                         <p className="font-semibold text-slate-900">{p.name}</p>
                         <p className="text-pink-600 font-bold">{money(p.price)}</p>
                         <div className="flex items-center gap-3 mt-2">
-                          <button className="border rounded p-1 bg-white hover:bg-gray-50" onClick={() => qty(p.id, -1)}><Minus size={14} /></button>
+                          <button className="border rounded p-1 bg-white hover:bg-gray-50 cursor-pointer" onClick={() => qty(p.id, -1)}><Minus size={14} /></button>
                           <span className="font-bold">{p.quantity}</span>
-                          <button className="border rounded p-1 bg-white hover:bg-gray-50" onClick={() => qty(p.id, 1)}><Plus size={14} /></button>
-                          <button className="ml-auto text-gray-400 hover:text-red-600" onClick={() => setCart(old => old.filter(x => x.id !== p.id))}><Trash2 size={17} /></button>
+                          <button className="border rounded p-1 bg-white hover:bg-gray-50 cursor-pointer" onClick={() => qty(p.id, 1)}><Plus size={14} /></button>
+                          <button className="ml-auto text-gray-400 hover:text-red-600 cursor-pointer" onClick={() => setCart(old => old.filter(x => x.id !== p.id))}><Trash2 size={17} /></button>
                         </div>
                       </div>
                     </div>
@@ -516,7 +532,7 @@ export default function Home() {
                   <span className="text-pink-600">{money(total)}</span>
                 </div>
 
-                <button onClick={checkout} className="w-full rounded-full bg-green-600 hover:bg-green-700 text-white py-4 font-bold flex justify-center items-center gap-2 shadow-lg shadow-green-600/30 transition-all">
+                <button onClick={checkout} className="w-full rounded-full bg-green-600 hover:bg-green-700 text-white py-4 font-bold flex justify-center items-center gap-2 shadow-lg shadow-green-600/30 transition-all cursor-pointer">
                   <MessageCircle /> Enviar pedido por WhatsApp
                 </button>
               </div>
