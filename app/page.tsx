@@ -194,7 +194,7 @@ export default function Home() {
   return (
     <main className="bg-[#FAF0EE] text-[#3B3B3B] min-h-screen">
 
-      {/* BARRA SUPERIOR (Negro Humo con detalles en Oro Rosa y Dorado) */}
+      {/* BARRA SUPERIOR */}
       <header className="bg-gradient-to-r from-[#3B3B3B] via-[#1A1A1A] to-[#000000] text-white px-5 md:px-10 py-4 shadow-lg sticky top-0 z-40 border-b border-[#CFA18D]/30">
         <div className="mx-auto max-w-7xl flex items-center justify-between gap-3">
           <button
@@ -206,7 +206,7 @@ export default function Home() {
           </button>
 
           <a href="#" className="text-center">
-            <div className="brand-script text-4xl md:text-5xl rose-gold-text drop-shadow-sm font-bold">Stefmol</div>
+            <div className="brand-script text-4xl md:text-5xl rose-gold-text drop-shadow-sm">Stefmol</div>
             <div className="text-[9px] tracking-[.3em] text-[#CFA18D] font-bold uppercase">BOUTIQUE ERÓTICA</div>
           </a>
 
@@ -234,7 +234,7 @@ export default function Home() {
 
             <div className="flex items-center justify-between p-4 border-b border-[#F5D9D6] bg-[#FAF0EE]">
               <div>
-                <div className="brand-script text-2xl rose-gold-text font-bold">Stefmol</div>
+                <div className="brand-script text-2xl rose-gold-text">Stefmol</div>
                 <div className="text-[8px] tracking-[.2em] text-[#B76E79] font-bold uppercase">BOUTIQUE ERÓTICA</div>
               </div>
               <button onClick={() => setMenuOpen(false)} className="p-2 rounded-full hover:bg-gray-200/60 text-[#3B3B3B] transition-colors" aria-label="Cerrar">
@@ -329,12 +329,12 @@ export default function Home() {
         </div>
       )}
 
-      {/* SECCIÓN HERO (Con Oro Rosa Metálico Brillante en "Hot ♡") */}
+      {/* SECCIÓN HERO */}
       <section className="bg-gradient-to-b from-[#3B3B3B] via-[#1F1F1F] to-[#000000] text-white border-b border-[#CFA18D]/20">
         <div className="mx-auto max-w-7xl px-6 py-14 md:py-24 grid md:grid-cols-2 items-center gap-8">
           <div className="text-center flex flex-col items-center justify-center">
             <p className="text-[#CFA18D] italic text-xl md:text-2xl font-light">Explora tu lado más</p>
-            <h1 className="brand-script text-7xl md:text-9xl rose-gold-shine leading-tight drop-shadow-2xl font-black">
+            <h1 className="brand-script text-7xl md:text-9xl rose-gold-shine leading-tight drop-shadow-2xl">
               Hot ♡
             </h1>
             <p className="tracking-[.25em] text-xs md:text-sm mt-2 text-[#F5D9D6] uppercase font-medium">
@@ -363,7 +363,7 @@ export default function Home() {
 
             <div className="relative z-10">
               <Heart className="mx-auto text-[#CFA18D] group-hover:scale-110 transition-transform drop-shadow-md" size={52} />
-              <p className="brand-script text-4xl md:text-5xl rose-gold-text mt-4 drop-shadow-lg font-bold">Promociones del Mes</p>
+              <p className="brand-script text-4xl md:text-5xl rose-gold-text mt-4 drop-shadow-lg">Promociones del Mes</p>
               <p className="text-xs text-[#F5D9D6] mt-3 font-semibold uppercase tracking-wider bg-black/70 backdrop-blur-xs px-4 py-1.5 rounded-full inline-block border border-[#CFA18D]/40 shadow-md">
                 Haz clic aquí para ver ofertas especiales ✨
               </p>
