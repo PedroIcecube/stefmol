@@ -105,7 +105,6 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Extraer imágenes de productos marcados como promo
   const promoImages = useMemo(() => {
     const promoProds = products.filter(p => p.promo === true || p.category === "Promociones del Mes");
     const imgs: string[] = [];
@@ -121,7 +120,6 @@ export default function Home() {
     return imgs;
   }, [products]);
 
-  // Rotar la imagen del banner automáticamente
   useEffect(() => {
     if (promoImages.length <= 1) return;
 
@@ -137,7 +135,6 @@ export default function Home() {
     return catObj ? catObj.subcategories : [];
   }, [activeCategory]);
 
-  // Filtrar catálogo incluyendo soporte mejorado para Promociones
   const visible = useMemo(() => {
     return products.filter(p => {
       const isPromoProduct = Boolean(p.promo) || p.category === "Promociones del Mes";
@@ -171,7 +168,8 @@ export default function Home() {
     setCart(old => old.map(p => p.id === id ? { ...p, quantity: p.quantity + delta } : p).filter(p => p.quantity > 0));
   }
 
-  function handleSelectCategory(catName: string, subName: string | null = null) {
+  // Navegar a una categoría/subcategoría en el catálogo y cerrar menú
+  function navigateToCategory(catName: string, subName: string | null = null) {
     setActiveCategory(catName);
     setActiveSubcategory(subName);
     setMenuOpen(false);
@@ -266,12 +264,15 @@ export default function Home() {
                   <div key={index} className="border-b border-gray-100 pb-2">
                     <div
                       onClick={() => {
-                        handleSelectCategory(cat.name, null);
                         if (hasSubs) {
+                          // Solo expande o colapsa las subsecciones sin desplazarse
                           setExpandedMenuCategory(isExpanded ? null : cat.name);
+                        } else {
+                          // Si no tiene subsecciones (como Promociones), navega directamente
+                          navigateToCategory(cat.name, null);
                         }
                       }}
-                      className="w-full flex items-center justify-between py-2 px-3 rounded-xl text-slate-900 font-bold text-sm hover:bg-pink-50 transition-colors cursor-pointer"
+                      className="w-full flex items-center justify-between py-2 px-3 rounded-xl text-slate-900 font-bold text-sm hover:bg-pink-50 transition-colors cursor-pointer select-none"
                     >
                       <span>{cat.name}</span>
                       {hasSubs && (
@@ -281,12 +282,22 @@ export default function Home() {
                       )}
                     </div>
 
+                    {/* SUBSECCIONES EN EL MENÚ */}
                     {hasSubs && isExpanded && (
                       <div className="ml-4 mt-1 space-y-1 bg-pink-50/40 p-2 rounded-xl border-l-2 border-pink-300">
+                        {/* Opción para ver todo en la categoría */}
+                        <button
+                          onClick={() => navigateToCategory(cat.name, null)}
+                          className="w-full text-left py-1.5 px-3 text-xs font-bold text-pink-600 hover:bg-pink-100/60 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Ver todo en {cat.name}
+                        </button>
+
+                        {/* Lista de subcategorías */}
                         {cat.subcategories.map((sub, sIdx) => (
                           <button
                             key={sIdx}
-                            onClick={() => handleSelectCategory(cat.name, sub)}
+                            onClick={() => navigateToCategory(cat.name, sub)}
                             className="w-full text-left py-1.5 px-3 text-xs font-semibold text-slate-600 hover:text-pink-700 hover:bg-pink-100/60 rounded-lg transition-colors cursor-pointer"
                           >
                             • {sub}
@@ -335,7 +346,7 @@ export default function Home() {
 
           {/* BANNER DE PROMOCIONES CON CARRUSEL DE FOTOS */}
           <div
-            onClick={() => handleSelectCategory("Promociones del Mes", null)}
+            onClick={() => navigateToCategory("Promociones del Mes", null)}
             className="relative rounded-3xl border border-pink-300/30 overflow-hidden min-h-64 md:min-h-80 flex items-center justify-center text-center p-8 cursor-pointer hover:border-pink-400 transition-all shadow-xl hover:scale-[1.01] group bg-gradient-to-br from-pink-900/40 to-black/80"
           >
             {promoImages.length > 0 && promoImages.map((imgUrl, idx) => (
