@@ -214,8 +214,8 @@ export default function ProductDetailPage() {
                             <button
                                 onClick={() => setAdded(true)}
                                 className={`w-full rounded-full py-4 font-bold flex justify-center items-center gap-2 shadow-lg transition-all cursor-pointer ${added
-                                        ? "bg-emerald-600 text-white shadow-emerald-500/30"
-                                        : "pink-gradient text-white shadow-pink-500/30 hover:scale-[1.02] active:scale-95"
+                                    ? "bg-emerald-600 text-white shadow-emerald-500/30"
+                                    : "pink-gradient text-white shadow-pink-500/30 hover:scale-[1.02] active:scale-95"
                                     }`}
                             >
                                 {added ? (
