@@ -1,80 +1,73 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ImagePlus, LoaderCircle, PlusCircle, CheckCircle2, X } from "lucide-react";
+import { ArrowLeft, ImagePlus, LoaderCircle, PlusCircle, CheckCircle2, X, Trash2, Edit3 } from "lucide-react";
 
 type CategoryStructure = {
     name: string;
     subcategories: string[];
 };
 
-// Mismas categorías y subsecciones definidas en el catálogo de la tienda
 const categoryStructure: CategoryStructure[] = [
-    {
-        name: "Promociones del Mes",
-        subcategories: []
-    },
+    { name: "Promociones del Mes", subcategories: [] },
     {
         name: "Juguetes",
-        subcategories: [
-            "Anillos vibradores",
-            "Dildos",
-            "Juegos eróticos",
-            "Masturbadores",
-            "Plugs anales",
-            "BDSM",
-            "Succionadores",
-            "Vibradores"
-        ]
+        subcategories: ["Anillos vibradores", "Dildos", "Juegos eróticos", "Masturbadores", "Plugs anales", "BDSM", "Succionadores", "Vibradores"]
     },
     {
         name: "Placer y Sensaciones",
-        subcategories: [
-            "Anal",
-            "Cremas fusión",
-            "Estrechante",
-            "Feromonas",
-            "Garganta profunda",
-            "Lubricantes",
-            "Multiorgasmo",
-            "Potenciador",
-            "Comestibles",
-            "Retardantes"
-        ]
+        subcategories: ["Anal", "Cremas fusión", "Estrechante", "Feromonas", "Garganta profunda", "Lubricantes", "Multiorgasmo", "Potenciador", "Comestibles", "Retardantes"]
     },
     {
         name: "Lencería",
-        subcategories: [
-            "Talla XS",
-            "Talla S",
-            "Talla M",
-            "Talla L",
-            "Talla XL",
-            "Talla XXL",
-            "Mallas",
-            "Cuero"
-        ]
+        subcategories: ["Talla XS", "Talla S", "Talla M", "Talla L", "Talla XL", "Talla XXL", "Mallas", "Cuero"]
     }
 ];
 
+type Product = {
+    id: string;
+    name: string;
+    description: string | null;
+    category: string | null;
+    subcategory?: string | null;
+    price: number;
+    image_url: string | null;
+    image_urls?: string[];
+};
+
 export default function Admin() {
     const [password, setPassword] = useState("");
+    const [editingId, setEditingId] = useState<string | null>(null); // ID del producto si estamos editando
     const [name, setName] = useState("");
     const [price, setPrice] = useState("");
     const [category, setCategory] = useState("Juguetes");
     const [subcategory, setSubcategory] = useState("Vibradores");
     const [description, setDescription] = useState("");
 
-    // Soporte para múltiples archivos e imágenes de vista previa
     const [files, setFiles] = useState<File[]>([]);
     const [previews, setPreviews] = useState<string[]>([]);
+    const [existingImages, setExistingImages] = useState<string[]>([]); // Fotos previas al editar
 
+    const [products, setProducts] = useState<Product[]>([]);
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState("");
     const [error, setError] = useState(false);
 
-    // Manejar la selección de la categoría principal y reiniciar la subcategoría adecuada
+    // Cargar productos para la lista de administración
+    useEffect(() => {
+        fetchProducts();
+    }, []);
+
+    function fetchProducts() {
+        fetch("/api/products")
+            .then(r => r.json())
+            .then(d => {
+                if (Array.isArray(d)) setProducts(d);
+            })
+            .catch(() => { });
+    }
+
     function handleCategoryChange(newCat: string) {
         setCategory(newCat);
         const catObj = categoryStructure.find(c => c.name === newCat);
@@ -85,21 +78,68 @@ export default function Admin() {
         }
     }
 
-    // Manejar selección de múltiples fotos
     function handleFileSelect(selectedFiles: FileList | null) {
         if (!selectedFiles) return;
         const newFiles = Array.from(selectedFiles);
-
         setFiles(prev => [...prev, ...newFiles]);
-
         const newPreviews = newFiles.map(f => URL.createObjectURL(f));
         setPreviews(prev => [...prev, ...newPreviews]);
     }
 
-    // Eliminar una imagen individual seleccionada
-    function removeImage(index: number) {
+    function removeNewImage(index: number) {
         setFiles(prev => prev.filter((_, i) => i !== index));
         setPreviews(prev => prev.filter((_, i) => i !== index));
+    }
+
+    function removeExistingImage(index: number) {
+        setExistingImages(prev => prev.filter((_, i) => i !== index));
+    }
+
+    // Cargar datos de un producto en el formulario para editarlo
+    function startEdit(product: Product) {
+        setEditingId(product.id);
+        setName(product.name);
+        setPrice(String(product.price));
+        setCategory(product.category || "Juguetes");
+        setSubcategory(product.subcategory || "");
+        setDescription(product.description || "");
+        setExistingImages(product.image_urls && product.image_urls.length > 0 ? product.image_urls : (product.image_url ? [product.image_url] : []));
+        setFiles([]);
+        setPreviews([]);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function cancelEdit() {
+        setEditingId(null);
+        setName("");
+        setPrice("");
+        setDescription("");
+        setExistingImages([]);
+        setFiles([]);
+        setPreviews([]);
+    }
+
+    async function handleDelete(id: string) {
+        if (!password) {
+            alert("Por favor ingresa la contraseña de administrador arriba para confirmar la eliminación.");
+            return;
+        }
+        if (!confirm("¿Estás seguro de eliminar este producto?")) return;
+
+        try {
+            const r = await fetch(`/api/products/${id}`, {
+                method: "DELETE",
+                headers: { "x-admin-password": password }
+            });
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.error || "No se pudo eliminar");
+
+            setMessage("¡Producto eliminado correctamente!");
+            fetchProducts();
+        } catch (err: any) {
+            setError(true);
+            setMessage(err.message || "Error al eliminar");
+        }
     }
 
     async function submit(e: React.FormEvent) {
@@ -109,9 +149,9 @@ export default function Admin() {
         setError(false);
 
         try {
-            const uploadedUrls: string[] = [];
+            const uploadedUrls: string[] = [...existingImages];
 
-            // Subir todas las imágenes seleccionadas a la API
+            // Subir nuevas imágenes si se seleccionaron
             for (const file of files) {
                 const fd = new FormData();
                 fd.append("file", file);
@@ -121,13 +161,15 @@ export default function Admin() {
                     body: fd
                 });
                 const ud = await up.json();
-                if (!up.ok) throw new Error(ud.error || `Error subiendo la imagen ${file.name}`);
+                if (!up.ok) throw new Error(ud.error || `Error subiendo imagen`);
                 uploadedUrls.push(ud.url);
             }
 
-            // Guardar el producto con sus múltiples URLs de imagen y subcategoría
-            const r = await fetch("/api/products", {
-                method: "POST",
+            const endpoint = editingId ? `/api/products/${editingId}` : "/api/products";
+            const method = editingId ? "PUT" : "POST";
+
+            const r = await fetch(endpoint, {
+                method: method,
                 headers: {
                     "Content-Type": "application/json",
                     "x-admin-password": password
@@ -138,23 +180,20 @@ export default function Admin() {
                     category,
                     subcategory,
                     description,
-                    image_url: uploadedUrls[0] || "", // Mantener compatibilidad con la primera foto
-                    image_urls: uploadedUrls           // Arreglo completo de imágenes
+                    image_url: uploadedUrls[0] || "",
+                    image_urls: uploadedUrls
                 })
             });
 
             const d = await r.json();
             if (!r.ok) throw new Error(d.error || "No se pudo guardar el producto");
 
-            setMessage("¡Producto guardado exitosamente con todas sus fotos!");
-            setName("");
-            setPrice("");
-            setDescription("");
-            setFiles([]);
-            setPreviews([]);
-        } catch (err) {
+            setMessage(editingId ? "¡Producto actualizado con éxito!" : "¡Producto guardado exitosamente!");
+            cancelEdit();
+            fetchProducts();
+        } catch (err: any) {
             setError(true);
-            setMessage(err instanceof Error ? err.message : "Ocurrió un error al guardar");
+            setMessage(err.message || "Ocurrió un error");
         } finally {
             setBusy(false);
         }
@@ -164,17 +203,30 @@ export default function Admin() {
 
     return (
         <main className="min-h-screen bg-gradient-to-br from-rose-50 to-white p-5 md:p-10">
-            <div className="max-w-2xl mx-auto">
+            <div className="max-w-3xl mx-auto">
                 <Link href="/" className="inline-flex items-center gap-2 text-pink-700 mb-7 hover:underline">
                     <ArrowLeft size={18} /> Volver a la tienda
                 </Link>
 
-                <div className="bg-white rounded-3xl soft-shadow p-6 md:p-9 border border-pink-100">
-                    <div className="brand-script text-4xl text-pink-600">Stefmol</div>
-                    <h1 className="text-2xl font-black mt-2">Administrar productos</h1>
-                    <p className="text-gray-500 text-sm mt-2">
-                        Sube fotos directamente desde la galería del celular o desde tu computador.
-                    </p>
+                {/* FORMULARIO DE CREACIÓN / EDICIÓN */}
+                <div className="bg-white rounded-3xl shadow-xl border border-pink-100 p-6 md:p-9 mb-10">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <div className="brand-script text-4xl text-pink-600">Stefmol</div>
+                            <h1 className="text-2xl font-black mt-2">
+                                {editingId ? "✏️ Editando Producto" : "Administrar productos"}
+                            </h1>
+                        </div>
+                        {editingId && (
+                            <button
+                                type="button"
+                                onClick={cancelEdit}
+                                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-xl font-semibold cursor-pointer"
+                            >
+                                Cancelar edición
+                            </button>
+                        )}
+                    </div>
 
                     <form onSubmit={submit} className="mt-7 space-y-5">
                         <div>
@@ -257,13 +309,11 @@ export default function Admin() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-semibold mb-2">Fotos del producto (puedes elegir varias)</label>
-                            <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-pink-300 bg-pink-50 rounded-2xl p-6 text-center cursor-pointer hover:bg-pink-100/80 transition-colors">
+                            <label className="block text-sm font-semibold mb-2">Fotos del producto</label>
+                            <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-pink-300 bg-pink-50 rounded-2xl p-6 text-center cursor-pointer hover:bg-pink-100/85 transition-colors">
                                 <ImagePlus size={34} className="text-pink-600" />
-                                <span className="font-semibold text-slate-800">
-                                    {files.length > 0 ? `${files.length} foto(s) seleccionada(s)` : "Toca para elegir imágenes"}
-                                </span>
-                                <span className="text-xs text-gray-500">JPG, PNG, WEBP · Puedes seleccionar múltiples fotos</span>
+                                <span className="font-semibold text-slate-800">Toca para agregar más imágenes</span>
+                                <span className="text-xs text-gray-500">JPG, PNG, WEBP</span>
                                 <input
                                     type="file"
                                     multiple
@@ -273,21 +323,45 @@ export default function Admin() {
                                 />
                             </label>
 
-                            {/* VISTAS PREVIAS DE MÚLTIPLES FOTOS */}
+                            {/* FOTOS EXISTENTES AL EDITAR */}
+                            {existingImages.length > 0 && (
+                                <div className="mt-4">
+                                    <p className="text-xs font-bold text-gray-500 mb-2">Imágenes actuales:</p>
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                        {existingImages.map((src, index) => (
+                                            <div key={`ex-${index}`} className="relative group rounded-xl overflow-hidden border border-gray-200 aspect-square bg-gray-50">
+                                                <img src={src} alt="Actual" className="w-full h-full object-cover" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeExistingImage(index)}
+                                                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 shadow-md hover:bg-red-700 transition-colors cursor-pointer"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* NUEVAS VISTAS PREVIAS */}
                             {previews.length > 0 && (
-                                <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 gap-3">
-                                    {previews.map((src, index) => (
-                                        <div key={index} className="relative group rounded-xl overflow-hidden border border-gray-200 aspect-square bg-gray-50">
-                                            <img src={src} alt={`Vista previa ${index + 1}`} className="w-full h-full object-cover" />
-                                            <button
-                                                type="button"
-                                                onClick={() => removeImage(index)}
-                                                className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 shadow-md hover:bg-red-700 transition-colors"
-                                            >
-                                                <X size={14} />
-                                            </button>
-                                        </div>
-                                    ))}
+                                <div className="mt-4">
+                                    <p className="text-xs font-bold text-gray-500 mb-2">Nuevas imágenes a subir:</p>
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                        {previews.map((src, index) => (
+                                            <div key={`new-${index}`} className="relative group rounded-xl overflow-hidden border border-pink-200 aspect-square bg-pink-50">
+                                                <img src={src} alt="Nueva" className="w-full h-full object-cover" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeNewImage(index)}
+                                                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 shadow-md hover:bg-red-700 transition-colors cursor-pointer"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -298,11 +372,11 @@ export default function Admin() {
                         >
                             {busy ? (
                                 <>
-                                    <LoaderCircle className="animate-spin" /> Guardando producto…
+                                    <LoaderCircle className="animate-spin" /> Guardando cambios…
                                 </>
                             ) : (
                                 <>
-                                    <PlusCircle /> Guardar producto
+                                    <PlusCircle /> {editingId ? "Actualizar producto" : "Guardar producto"}
                                 </>
                             )}
                         </button>
@@ -316,9 +390,47 @@ export default function Admin() {
                     </form>
                 </div>
 
-                <p className="text-xs text-gray-500 mt-5 text-center">
-                    Consejo: usa fotos propias o imágenes que tengas autorización para publicar.
-                </p>
+                {/* LISTADO DE PRODUCTOS PARA EDITAR O ELIMINAR */}
+                <div className="bg-white rounded-3xl shadow-xl border border-pink-100 p-6 md:p-9">
+                    <h2 className="text-xl font-black mb-4">Inventario de Productos ({products.length})</h2>
+                    <div className="space-y-3">
+                        {products.map(p => {
+                            const thumb = p.image_urls?.[0] || p.image_url;
+                            return (
+                                <div key={p.id} className="flex items-center justify-between gap-4 p-3 border border-gray-100 rounded-2xl bg-gray-50/50 hover:bg-white transition-all">
+                                    <div className="flex items-center gap-3">
+                                        {thumb ? (
+                                            <img src={thumb} alt={p.name} className="w-12 h-12 rounded-xl object-cover border" />
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-xl bg-pink-100 flex items-center justify-center text-pink-600 font-bold text-xs">Sin foto</div>
+                                        )}
+                                        <div>
+                                            <h4 className="font-bold text-sm text-slate-900">{p.name}</h4>
+                                            <p className="text-xs text-pink-600 font-semibold">${p.price?.toLocaleString()} COP</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => startEdit(p)}
+                                            className="bg-blue-50 text-blue-600 p-2.5 rounded-xl hover:bg-blue-100 transition-colors cursor-pointer"
+                                            title="Editar producto"
+                                        >
+                                            <Edit3 size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(p.id)}
+                                            className="bg-red-50 text-red-600 p-2.5 rounded-xl hover:bg-red-100 transition-colors cursor-pointer"
+                                            title="Eliminar producto"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
             </div>
         </main>
     );
