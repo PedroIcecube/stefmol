@@ -3,7 +3,10 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(
+    req: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
     if (req.headers.get("x-admin-password") !== process.env.ADMIN_PASSWORD) {
         return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
@@ -36,7 +39,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(
+    req: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
     if (req.headers.get("x-admin-password") !== process.env.ADMIN_PASSWORD) {
         return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
