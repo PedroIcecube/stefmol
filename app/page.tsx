@@ -330,17 +330,26 @@ export default function Home() {
       )}
 
       {/* SECCIÓN HERO */}
-      <section className="bg-gradient-to-b from-[#3B3B3B] via-[#1F1F1F] to-[#000000] text-white border-b border-[#CFA18D]/20">
-        <div className="mx-auto max-w-7xl px-6 py-14 md:py-24 grid md:grid-cols-2 items-center gap-8">
-          <div className="text-center flex flex-col items-center justify-center">
-            <p className="text-[#CFA18D] italic text-xl md:text-2xl font-light">Explora tu lado más</p>
-            <h1 className="brand-script text-8xl md:text-[10rem] rose-gold-shine leading-tight drop-shadow-2xl my-2">
+      <section className="bg-gradient-to-b from-[#3B3B3B] via-[#1F1F1F] to-[#000000] text-white border-b border-[#CFA18D]/20 overflow-hidden">
+        <div className="mx-auto max-w-7xl px-6 py-16 md:py-24 grid md:grid-cols-2 items-center gap-8">
+          <div className="text-center flex flex-col items-center justify-center pt-4">
+            <p className="text-[#CFA18D] italic text-base md:text-2xl font-light tracking-widest uppercase">
+              EXPLORA TU LADO MÁS
+            </p>
+
+            {/* TÍTULO HOT ♡ (Ajustado el padding superior y leading para no cortarse en móvil) */}
+            <h1 className="brand-script text-7xl sm:text-8xl md:text-[10rem] rose-gold-shine leading-normal pt-2 pb-1 drop-shadow-2xl select-none">
               Hot ♡
             </h1>
-            <p className="tracking-[.25em] text-xs md:text-sm text-[#F5D9D6] uppercase font-medium">
+
+            <p className="tracking-[.25em] text-xs md:text-sm mt-1 text-[#F5D9D6] uppercase font-medium">
               JUGUETES, LENCERÍA,<br /> ACCESORIOS Y MUCHO MÁS
             </p>
-            <a href="#catalogo" className="inline-flex items-center gap-4 rounded-full bg-gradient-to-r from-[#B76E79] to-[#CFA18D] px-8 py-4 mt-8 font-bold text-white shadow-lg shadow-black/40 hover:scale-105 active:scale-95 transition-all">
+
+            <a
+              href="#catalogo"
+              className="inline-flex items-center gap-4 rounded-full bg-gradient-to-r from-[#B76E79] to-[#CFA18D] px-8 py-4 mt-8 font-bold text-white shadow-lg shadow-black/40 hover:scale-105 active:scale-95 transition-all"
+            >
               VER PRODUCTOS <ArrowRight size={20} />
             </a>
           </div>
