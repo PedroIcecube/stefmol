@@ -52,6 +52,7 @@ export async function POST(req: Request) {
       price,
       image_url,
       image_urls,
+      promo: Boolean(body.promo),
       active: true
     }).select().single();
 

@@ -25,7 +25,8 @@ export async function PUT(
                 subcategory: String(body.subcategory ?? ""),
                 price: Number(body.price),
                 image_url: String(body.image_url ?? ""),
-                image_urls: body.image_urls ?? []
+                image_urls: body.image_urls ?? [],
+                promo: Boolean(body.promo)
             })
             .eq("id", id)
             .select()
