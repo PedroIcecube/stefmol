@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Edit3, Check, X, ArrowLeft, Image as ImageIcon, Sparkles } from "lucide-react";
+import { Plus, Trash2, Edit3, Check, X, ArrowLeft, Image as ImageIcon, Sparkles, Upload } from "lucide-react";
 
 type Product = {
     id: string;
@@ -74,6 +74,18 @@ export default function AdminPage() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
+    // Función para convertir la imagen seleccionada del Celular/PC a Base64 (para que se guarde y muestre de inmediato)
+    function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setImageUrl(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    }
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
 
@@ -82,15 +94,14 @@ export default function AdminPage() {
             return;
         }
 
-        // Permite emojis y cualquier carácter UTF-8
         const payload = {
-            name: name,
-            description: description,
-            category: category,
-            subcategory: subcategory,
+            name,
+            description,
+            category,
+            subcategory,
             price: Number(price),
             image_url: imageUrl,
-            promo: promo,
+            promo,
         };
 
         try {
@@ -106,6 +117,7 @@ export default function AdminPage() {
             if (res.ok) {
                 resetForm();
                 loadProducts();
+                alert("¡Producto guardado con éxito!");
             } else {
                 alert("Ocurrió un error al guardar el producto.");
             }
@@ -142,7 +154,7 @@ export default function AdminPage() {
                             <ArrowLeft size={16} /> Volver a la Tienda
                         </a>
                         <h1 className="brand-script text-4xl md:text-5xl rose-gold-text">Administración Stefmol</h1>
-                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión de Catálogo y Productos</p>
+                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión Libre de Catálogo</p>
                     </div>
                 </div>
 
@@ -166,7 +178,7 @@ export default function AdminPage() {
 
                     <div className="grid md:grid-cols-2 gap-4">
 
-                        {/* NOMBRE (ACEPTA EMOJIS) */}
+                        {/* NOMBRE */}
                         <div className="md:col-span-2">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
                                 Nombre del Producto (puedes incluir emojis ✨🔥)
@@ -238,18 +250,24 @@ export default function AdminPage() {
                             </div>
                         )}
 
-                        {/* URL DE IMAGEN */}
+                        {/* SELECCIONAR FOTO DESDE CELULAR / PC */}
                         <div className={currentSubcategories.length > 0 ? "" : "md:col-span-2"}>
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
-                                URL de la Imagen (Link externo)
+                                Seleccionar Foto del Producto (Celular o PC)
                             </label>
-                            <input
-                                type="url"
-                                value={imageUrl}
-                                onChange={(e) => setImageUrl(e.target.value)}
-                                placeholder="https://ejemplo.com/imagen.jpg"
-                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
-                            />
+                            <div className="flex items-center gap-3">
+                                <label className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-xl p-3 text-sm bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold transition-colors">
+                                    <Upload size={18} className="text-[#B76E79]" />
+                                    <span>{imageUrl ? "Cambiar imagen seleccionada" : "Elegir archivo de imagen"}</span>
+                                    <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                                </label>
+                            </div>
+                            {imageUrl && (
+                                <div className="mt-2 flex items-center gap-3">
+                                    <img src={imageUrl} alt="Vista previa" className="w-14 h-14 object-cover rounded-lg border border-gray-200 shadow-sm" />
+                                    <span className="text-xs text-emerald-600 font-bold">¡Imagen cargada correctamente!</span>
+                                </div>
+                            )}
                         </div>
 
                         {/* DESCRIPCIÓN */}
@@ -281,7 +299,7 @@ export default function AdminPage() {
 
                     </div>
 
-                    {/* BOTÓN ALTA VISIBILIDAD DE GUARDADO / ACTUALIZADO */}
+                    {/* BOTÓN GUARDAR */}
                     <div className="pt-2">
                         <button
                             type="submit"
@@ -300,7 +318,7 @@ export default function AdminPage() {
                     </div>
                 </form>
 
-                {/* LISTADO DE PRODUCTOS EXISTENTES */}
+                {/* LISTADO DE PRODUCTOS */}
                 <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg border border-[#F5D9D6] space-y-4">
                     <h3 className="text-lg font-bold text-[#3B3B3B]">
                         Productos Publicados ({products.length})
