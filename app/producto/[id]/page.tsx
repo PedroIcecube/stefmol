@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
     ShoppingCart, Heart, ArrowLeft, MessageCircle,
-    Plus, Minus, CheckCircle2
+    Plus, Minus, CheckCircle2, ChevronLeft, ChevronRight
 } from "lucide-react";
 
 type Product = {
@@ -22,12 +22,7 @@ type Product = {
 const money = (n: number) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
 
 const fallback: Product[] = [
-    { id: "demo1", name: "Vibrador Conejito 12 modos", description: "Diseño ergonómico · 12 modos de vibración potente y silenciosa. Fabricado en silicona médica suave al tacto.", category: "Juguetes", subcategory: "Vibradores", price: 89900, image_url: "", promo: true },
-    { id: "demo2", name: "Estimulador de succión", description: "Diseño compacto, tecnología de ondas sónicas para estimulación sin contacto directo.", category: "Juguetes", subcategory: "Succionadores", price: 99900, image_url: "", promo: false },
-    { id: "demo3", name: "Plug anal con joya", description: "Material suave, base segura y diseño elegante con detalle de gema en la punta.", category: "Juguetes", subcategory: "Plugs anales", price: 59900, image_url: "", promo: true },
-    { id: "demo4", name: "Conjunto lencería de encaje", description: "Consulta las tallas disponibles. Tela elástica y suave que se adapta perfectamente a tu silueta.", category: "Lencería", subcategory: "Talla M", price: 79900, image_url: "", promo: false },
-    { id: "demo5", name: "Lubricante íntimo base agua 120 ml", description: "Presentación de 120 ml. Compatible con juguetes de silicona y preservativos, textura ligera no pegajosa.", category: "Placer y Sensaciones", subcategory: "Lubricantes", price: 39900, image_url: "", promo: true },
-    { id: "demo6", name: "Kit de bienestar íntimo", description: "Pregunta por disponibilidad. Incluye elementos esenciales para consentirte o regalar en pareja.", category: "Placer y Sensaciones", subcategory: "Multiorgasmo", price: 119900, image_url: "", promo: true }
+    { id: "demo1", name: "Vibrador Conejito 12 modos", description: "Diseño ergonómico · 12 modos de vibración potente y silenciosa.", category: "Juguetes", subcategory: "Vibradores", price: 89900, image_url: "", image_urls: [], promo: true },
 ];
 
 export default function ProductDetailPage() {
@@ -36,7 +31,7 @@ export default function ProductDetailPage() {
     const id = params?.id as string;
 
     const [product, setProduct] = useState<Product | null>(null);
-    const [selectedImage, setSelectedImage] = useState<string>("");
+    const [selectedImageIndex, setSelectedImageIndex] = useState(0);
     const [loading, setLoading] = useState(true);
     const [quantity, setQuantity] = useState(1);
     const [added, setAdded] = useState(false);
@@ -50,32 +45,18 @@ export default function ProductDetailPage() {
                     const found = d.find(p => p.id === id);
                     if (found) {
                         setProduct(found);
-                        const initialImg = found.image_urls?.[0] || found.image_url || "";
-                        setSelectedImage(initialImg);
                         return;
                     }
                 }
                 const foundFallback = fallback.find(p => p.id === id);
-                if (foundFallback) {
-                    setProduct(foundFallback);
-                    setSelectedImage(foundFallback.image_url || "");
-                }
+                if (foundFallback) setProduct(foundFallback);
             })
             .catch(() => {
                 const foundFallback = fallback.find(p => p.id === id);
-                if (foundFallback) {
-                    setProduct(foundFallback);
-                    setSelectedImage(foundFallback.image_url || "");
-                }
+                if (foundFallback) setProduct(foundFallback);
             })
             .finally(() => setLoading(false));
     }, [id]);
-
-    function addToCart() {
-        if (!product) return;
-        setAdded(true);
-        setTimeout(() => setAdded(false), 2000);
-    }
 
     if (loading) {
         return (
@@ -100,15 +81,29 @@ export default function ProductDetailPage() {
         );
     }
 
-    const allImages = product.image_urls && product.image_urls.length > 0
+    // Obtener todas las imágenes disponibles (unificando image_urls y image_url)
+    const images = product.image_urls && product.image_urls.length > 0
         ? product.image_urls
         : (product.image_url ? [product.image_url] : []);
+
+    const currentImage = images[selectedImageIndex] || "";
+
+    function nextImage() {
+        if (images.length > 1) {
+            setSelectedImageIndex((prev) => (prev + 1) % images.length);
+        }
+    }
+
+    function prevImage() {
+        if (images.length > 1) {
+            setSelectedImageIndex((prev) => (prev - 1 + images.length) % images.length);
+        }
+    }
 
     return (
         <main className="bg-gradient-to-br from-rose-50/50 via-white to-pink-50/30 text-slate-900 min-h-screen py-10 px-5">
             <div className="max-w-4xl mx-auto">
 
-                {/* Botón Volver */}
                 <button
                     onClick={() => router.back()}
                     className="inline-flex items-center gap-2 text-pink-600 font-semibold mb-6 hover:underline cursor-pointer"
@@ -118,17 +113,38 @@ export default function ProductDetailPage() {
 
                 <div className="bg-white rounded-3xl shadow-xl border border-pink-100 overflow-hidden grid md:grid-cols-2 gap-8 p-6 md:p-10">
 
-                    {/* GALERÍA DE IMÁGENES */}
+                    {/* GALERÍA DE IMÁGENES INTERACTIVA */}
                     <div className="flex flex-col gap-4">
-                        <div className="aspect-square rounded-2xl bg-gradient-to-br from-pink-50 to-rose-100 overflow-hidden flex items-center justify-center relative shadow-inner">
-                            {selectedImage ? (
-                                <img src={selectedImage} alt={product.name} className="w-full h-full object-cover" />
+                        <div className="aspect-square rounded-2xl bg-gradient-to-br from-pink-50 to-rose-100 overflow-hidden flex items-center justify-center relative shadow-inner group">
+                            {currentImage ? (
+                                <img src={currentImage} alt={product.name} className="w-full h-full object-cover transition-all duration-300" />
                             ) : (
                                 <div className="text-center p-6">
                                     <Heart size={64} className="text-pink-400 mx-auto" />
                                     <p className="text-sm text-pink-700 mt-3 font-semibold">Stefmol · Producto Exclusivo</p>
                                 </div>
                             )}
+
+                            {/* Botones de navegación lateral si hay más de 1 imagen */}
+                            {images.length > 1 && (
+                                <>
+                                    <button
+                                        onClick={prevImage}
+                                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full opacity-80 hover:opacity-100 transition-opacity cursor-pointer"
+                                        aria-label="Imagen anterior"
+                                    >
+                                        <ChevronLeft size={20} />
+                                    </button>
+                                    <button
+                                        onClick={nextImage}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full opacity-80 hover:opacity-100 transition-opacity cursor-pointer"
+                                        aria-label="Siguiente imagen"
+                                    >
+                                        <ChevronRight size={20} />
+                                    </button>
+                                </>
+                            )}
+
                             {product.promo && (
                                 <span className="absolute top-4 left-4 bg-pink-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow">
                                     Promoción del Mes
@@ -136,17 +152,17 @@ export default function ProductDetailPage() {
                             )}
                         </div>
 
-                        {/* MINIATURAS (Si hay múltiples fotos) */}
-                        {allImages.length > 1 && (
-                            <div className="flex gap-2 overflow-x-auto pb-2">
-                                {allImages.map((imgUrl, index) => (
+                        {/* MINIATURAS CLICKEABLES */}
+                        {images.length > 1 && (
+                            <div className="flex gap-2 overflow-x-auto pb-2 justify-center">
+                                {images.map((img, idx) => (
                                     <button
-                                        key={index}
-                                        onClick={() => setSelectedImage(imgUrl)}
-                                        className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all cursor-pointer flex-shrink-0 ${selectedImage === imgUrl ? "border-pink-600 scale-105 shadow-md" : "border-gray-200 opacity-70 hover:opacity-100"
+                                        key={idx}
+                                        onClick={() => setSelectedImageIndex(idx)}
+                                        className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all cursor-pointer flex-shrink-0 ${selectedImageIndex === idx ? "border-pink-600 scale-105 shadow-md" : "border-gray-200 opacity-60 hover:opacity-100"
                                             }`}
                                     >
-                                        <img src={imgUrl} alt={`Foto ${index + 1}`} className="w-full h-full object-cover" />
+                                        <img src={img} alt={`Miniatura ${idx + 1}`} className="w-full h-full object-cover" />
                                     </button>
                                 ))}
                             </div>
@@ -176,7 +192,6 @@ export default function ProductDetailPage() {
                         </div>
 
                         <div className="mt-8 space-y-4">
-                            {/* Selector de cantidad */}
                             <div className="flex items-center gap-4">
                                 <span className="text-sm font-semibold text-slate-700">Cantidad:</span>
                                 <div className="flex items-center border border-gray-200 rounded-full px-3 py-1.5 gap-4 bg-gray-50">
@@ -196,9 +211,8 @@ export default function ProductDetailPage() {
                                 </div>
                             </div>
 
-                            {/* Botón Agregar al Carrito */}
                             <button
-                                onClick={addToCart}
+                                onClick={() => setAdded(true)}
                                 className={`w-full rounded-full py-4 font-bold flex justify-center items-center gap-2 shadow-lg transition-all cursor-pointer ${added
                                         ? "bg-emerald-600 text-white shadow-emerald-500/30"
                                         : "pink-gradient text-white shadow-pink-500/30 hover:scale-[1.02] active:scale-95"
@@ -217,7 +231,6 @@ export default function ProductDetailPage() {
                                 )}
                             </button>
 
-                            {/* Botón Comprar por WhatsApp */}
                             <a
                                 href={`https://wa.me/573114020157?text=¡Hola!%20Quiero%20comprar%20el%20producto:%20*${encodeURIComponent(product.name)}*%20(Cantidad:%20${quantity},%20Precio:%20${money(product.price * quantity)})`}
                                 target="_blank"
