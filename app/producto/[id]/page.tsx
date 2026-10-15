@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import {
-    ShoppingCart, Heart, ArrowLeft, MessageCircle,
-    Plus, Minus, CheckCircle2
+    Menu, Search, ShoppingCart, Heart, Truck, LockKeyhole,
+    Headset, MessageCircle, Plus, Minus, Trash2,
+    ArrowRight, X, ChevronRight, CheckCircle2
 } from "lucide-react";
 
 type Product = {
@@ -17,174 +17,408 @@ type Product = {
     promo?: boolean;
 };
 
+type CartItem = Product & { quantity: number };
+
 const money = (n: number) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
 
 const fallback: Product[] = [
-    { id: "demo1", name: "Vibrador Conejito 12 modos", description: "Diseño ergonómico · 12 modos de vibración potente y silenciosa. Fabricado en silicona médica suave al tacto.", category: "Vibradores", price: 89900, image_url: "", promo: true },
-    { id: "demo2", name: "Estimulador de succión", description: "Diseño compacto, tecnología de ondas sónicas para estimulación sin contacto directo.", category: "Estimuladores", price: 99900, image_url: "", promo: false },
-    { id: "demo3", name: "Plug anal con joya", description: "Material suave, base segura y diseño elegante con detalle de gema en la punta.", category: "Anales", price: 59900, image_url: "", promo: true },
-    { id: "demo4", name: "Conjunto lencería de encaje", description: "Consulta las tallas disponibles. Tela elástica y suave que se adapta perfectamente a tu silueta.", category: "Lencería", price: 79900, image_url: "", promo: false },
-    { id: "demo5", name: "Lubricante íntimo base agua 120 ml", description: "Presentación de 120 ml. Compatible con juguetes de silicona y preservativos, textura ligera no pegajosa.", category: "Lubricantes", price: 39900, image_url: "", promo: true },
-    { id: "demo6", name: "Kit de bienestar íntimo", description: "Pregunta por disponibilidad. Incluye elementos esenciales para consentirte o regalar en pareja.", category: "Kits", price: 119900, image_url: "", promo: true }
+    { id: "demo1", name: "Vibrador Conejito 12 modos", description: "Diseño ergonómico · 12 modos", category: "Juguetes", price: 89900, image_url: "", promo: true },
+    { id: "demo2", name: "Estimulador de succión", description: "Diseño compacto", category: "Juguetes", price: 99900, image_url: "", promo: false },
+    { id: "demo3", name: "Plug anal con joya", description: "Material suave", category: "Lencería y BDSM", price: 59900, image_url: "", promo: true },
+    { id: "demo4", name: "Conjunto lencería de encaje", description: "Consulta las tallas disponibles", category: "Lencería y BDSM", price: 79900, image_url: "", promo: false },
+    { id: "demo5", name: "Lubricante íntimo base agua 120 ml", description: "Presentación de 120 ml", category: "Placeres y sensaciones", price: 39900, image_url: "", promo: true },
+    { id: "demo6", name: "Kit de bienestar íntimo", description: "Pregunta por disponibilidad", category: "Placeres y sensaciones", price: 119900, image_url: "", promo: true }
 ];
 
-export default function ProductDetailPage() {
-    const params = useParams();
-    const router = useRouter();
-    const id = params?.id as string;
+// Secciones reducidas exactamente a las del menú (sin "Todos")
+const menuSections = [
+    { name: "Promociones del Mes", cat: "Promociones del Mes" },
+    { name: "Juguetes", cat: "Juguetes" },
+    { name: "Placeres y sensaciones", cat: "Placeres y sensaciones" },
+    { name: "Lencería y BDSM", cat: "Lencería y BDSM" }
+];
 
-    const [product, setProduct] = useState<Product | null>(null);
+export default function Home() {
+    const [products, setProducts] = useState<Product[]>(fallback);
+    const [cart, setCart] = useState<CartItem[]>([]);
+    const [category, setCategory] = useState("Promociones del Mes");
+    const [search, setSearch] = useState("");
+    const [cartOpen, setCartOpen] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [note, setNote] = useState("");
     const [loading, setLoading] = useState(true);
-    const [quantity, setQuantity] = useState(1);
-    const [added, setAdded] = useState(false);
+    const [addedId, setAddedId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!id) return;
         fetch("/api/products")
             .then(r => r.ok ? r.json() : Promise.reject())
-            .then((d: Product[]) => {
-                if (Array.isArray(d)) {
-                    const found = d.find(p => p.id === id);
-                    if (found) {
-                        setProduct(found);
-                        return;
-                    }
-                }
-                const foundFallback = fallback.find(p => p.id === id);
-                if (foundFallback) setProduct(foundFallback);
-            })
-            .catch(() => {
-                const foundFallback = fallback.find(p => p.id === id);
-                if (foundFallback) setProduct(foundFallback);
-            })
+            .then((d: Product[]) => { if (Array.isArray(d) && d.length) setProducts(d); })
+            .catch(() => { })
             .finally(() => setLoading(false));
-    }, [id]);
+    }, []);
 
-    function addToCart() {
-        if (!product) return;
-        setAdded(true);
-        setTimeout(() => setAdded(false), 2000);
+    const visible = useMemo(() => {
+        return products.filter(p => {
+            const matchCat = category === "Promociones del Mes"
+                ? p.promo === true
+                : p.category === category;
+            const matchSearch = `${p.name} ${p.description ?? ""}`.toLowerCase().includes(search.toLowerCase());
+            return matchCat && matchSearch;
+        });
+    }, [products, category, search]);
+
+    const total = cart.reduce((s, p) => s + p.price * p.quantity, 0);
+
+    function add(p: Product) {
+        setCart(old => {
+            const found = old.find(x => x.id === p.id);
+            return found ? old.map(x => x.id === p.id ? { ...x, quantity: x.quantity + 1 } : x) : [...old, { ...p, quantity: 1 }];
+        });
+        setAddedId(p.id);
+        setTimeout(() => setAddedId(null), 1800);
     }
 
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-white text-slate-600">
-                <p>Cargando producto…</p>
-            </div>
-        );
+    function qty(id: string, delta: number) {
+        setCart(old => old.map(p => p.id === id ? { ...p, quantity: p.quantity + delta } : p).filter(p => p.quantity > 0));
     }
 
-    if (!product) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-white text-slate-800 p-6 text-center">
-                <h2 className="text-2xl font-black mb-2">Producto no encontrado</h2>
-                <p className="text-gray-500 mb-6">El producto que buscas no existe o fue retirado.</p>
-                <button
-                    onClick={() => router.push("/")}
-                    className="rounded-full pink-gradient text-white px-6 py-3 font-bold shadow-md"
-                >
-                    Volver al inicio
-                </button>
-            </div>
-        );
+    function checkout() {
+        const rawNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "573114020157";
+        const number = rawNumber.replace(/\D/g, "");
+
+        if (!number) {
+            alert("Por favor configura el número de WhatsApp en tu archivo .env.local");
+            return;
+        }
+
+        const lines = cart.map(p => `🛍️ ${p.name}\nCantidad: ${p.quantity}\nPrecio unidad: ${money(p.price)}\nSubtotal: ${money(p.price * p.quantity)}`).join("\n\n--------------------\n");
+        const message = `¡Hola! 👋 Quiero hacer este pedido:\n\n${lines}\n\nTOTAL: ${money(total)}\n\nNotas: ${note || "Sin notas"}\n\n¿Cómo puedo realizar el pago y en cuánto tiempo llega?`;
+
+        window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
     }
 
     return (
-        <main className="bg-gradient-to-br from-rose-50/50 via-white to-pink-50/30 text-slate-900 min-h-screen py-10 px-5">
-            <div className="max-w-4xl mx-auto">
+        <main className="bg-gradient-to-br from-rose-50/50 via-white to-pink-50/30 text-slate-900 min-h-screen">
 
-                <button
-                    onClick={() => router.back()}
-                    className="inline-flex items-center gap-2 text-pink-600 font-semibold mb-6 hover:underline cursor-pointer"
-                >
-                    <ArrowLeft size={20} /> Volver a la tienda
-                </button>
+            {/* BARRA SUPERIOR */}
+            <header className="hero-bg text-white px-5 md:px-10 py-4 shadow-md sticky top-0 z-40">
+                <div className="mx-auto max-w-7xl flex items-center justify-between gap-3">
+                    <button
+                        onClick={() => setMenuOpen(true)}
+                        aria-label="Menú"
+                        className="p-2 hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+                    >
+                        <Menu size={24} />
+                    </button>
 
-                <div className="bg-white rounded-3xl shadow-xl border border-pink-100 overflow-hidden grid md:grid-cols-2 gap-8 p-6 md:p-10">
+                    <a href="#" className="text-center">
+                        <div className="brand-script text-4xl md:text-5xl text-pink-300">Stefmol</div>
+                        <div className="text-[9px] tracking-[.28em] text-pink-100/80">TU TIENDA ERÓTICA</div>
+                    </a>
 
-                    <div className="aspect-square rounded-2xl bg-gradient-to-br from-pink-50 to-rose-100 overflow-hidden flex items-center justify-center relative shadow-inner">
-                        {product.image_url ? (
-                            <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="text-center p-6">
-                                <Heart size={64} className="text-pink-400 mx-auto" />
-                                <p className="text-sm text-pink-700 mt-3 font-semibold">Stefmol · Producto Exclusivo</p>
-                            </div>
-                        )}
-                        {product.promo && (
-                            <span className="absolute top-4 left-4 bg-pink-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow">
-                                Promoción del Mes
-                            </span>
-                        )}
+                    <div className="flex gap-4 items-center">
+                        <a href="#catalogo" aria-label="Buscar" className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+                            <Search size={22} />
+                        </a>
+                        <button onClick={() => setCartOpen(true)} className="relative p-2 hover:bg-white/10 rounded-xl transition-colors" aria-label="Carrito">
+                            <ShoppingCart size={22} />
+                            {cart.reduce((s, p) => s + p.quantity, 0) > 0 && (
+                                <span className="absolute -right-1 -top-1 bg-pink-500 rounded-full text-xs font-bold w-5 h-5 flex items-center justify-center text-white shadow-sm">
+                                    {cart.reduce((s, p) => s + p.quantity, 0)}
+                                </span>
+                            )}
+                        </button>
                     </div>
+                </div>
+            </header>
 
-                    <div className="flex flex-col justify-between">
-                        <div>
-                            <span className="text-xs font-bold text-pink-600 tracking-wider uppercase">{product.category || "General"}</span>
-                            <h1 className="text-3xl md:text-4xl font-black text-slate-900 mt-1">{product.name}</h1>
-                            <p className="text-pink-600 font-black text-3xl mt-3">{money(product.price)}</p>
+            {/* MENÚ LATERAL DRAWER */}
+            {menuOpen && (
+                <div className="fixed inset-0 z-50 flex">
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity" onClick={() => setMenuOpen(false)} />
+                    <div className="relative w-full max-w-sm sm:max-w-md bg-white text-slate-800 h-full shadow-2xl flex flex-col z-10 overflow-y-auto">
 
-                            <div className="mt-6 pt-6 border-t border-gray-100">
-                                <h3 className="font-bold text-sm text-slate-800 mb-2">Descripción detallada:</h3>
-                                <p className="text-sm text-slate-600 leading-relaxed">{product.description || "Sin descripción detallada disponible."}</p>
+                        <div className="flex items-center justify-between p-4 border-b border-pink-100">
+                            <div className="brand-script text-2xl text-pink-600">Stefmol</div>
+                            <button onClick={() => setMenuOpen(false)} className="p-2 rounded-full hover:bg-gray-100 text-slate-600 transition-colors" aria-label="Cerrar">
+                                <X size={22} />
+                            </button>
+                        </div>
+
+                        <div className="p-4">
+                            <div className="relative">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
+                                    <Search size={18} />
+                                </span>
+                                <input
+                                    type="text"
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                    placeholder="Busca juguetes o marcas..."
+                                    className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#FAF5F0] border border-[#F2E8DF] text-sm focus:outline-none focus:border-pink-500 text-slate-800 placeholder:text-gray-400"
+                                />
                             </div>
                         </div>
 
-                        <div className="mt-8 space-y-4">
-                            <div className="flex items-center gap-4">
-                                <span className="text-sm font-semibold text-slate-700">Cantidad:</span>
-                                <div className="flex items-center border border-gray-200 rounded-full px-3 py-1.5 gap-4 bg-gray-50">
-                                    <button
-                                        onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                                        className="text-slate-600 hover:text-pink-600 cursor-pointer"
-                                    >
-                                        <Minus size={16} />
-                                    </button>
-                                    <span className="font-bold text-slate-900 w-4 text-center">{quantity}</span>
-                                    <button
-                                        onClick={() => setQuantity(q => q + 1)}
-                                        className="text-slate-600 hover:text-pink-600 cursor-pointer"
-                                    >
-                                        <Plus size={16} />
-                                    </button>
-                                </div>
+                        <div className="flex-1 px-4 py-2 space-y-1">
+                            {menuSections.map((item, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => {
+                                        setCategory(item.cat);
+                                        setMenuOpen(false);
+                                        const el = document.getElementById("catalogo");
+                                        if (el) el.scrollIntoView({ behavior: "smooth" });
+                                    }}
+                                    className="w-full flex items-center justify-between py-3 px-3 rounded-xl text-slate-900 font-bold text-sm hover:bg-pink-50 border-b border-gray-100 transition-colors text-left"
+                                >
+                                    <span>{item.name}</span>
+                                    <ChevronRight size={18} className="text-gray-400" />
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="p-5 bg-[#FAF3F0] m-4 rounded-3xl border border-[#F3E6E0] space-y-3">
+                            <div>
+                                <h4 className="font-bold text-slate-900 text-base">¿Dudas? Te asesoramos</h4>
+                                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                                    Escríbenos por WhatsApp, respondemos con total discreción.
+                                </p>
                             </div>
-
-                            <button
-                                onClick={addToCart}
-                                className={`w-full rounded-full py-4 font-bold flex justify-center items-center gap-2 shadow-lg transition-all cursor-pointer ${added
-                                    ? "bg-emerald-600 text-white shadow-emerald-500/30"
-                                    : "pink-gradient text-white shadow-pink-500/30 hover:scale-[1.02] active:scale-95"
-                                    }`}
-                            >
-                                {added ? (
-                                    <>
-                                        <CheckCircle2 size={20} className="animate-bounce" />
-                                        <span>¡Producto agregado!</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <ShoppingCart size={20} />
-                                        <span>Agregar al carrito ({quantity})</span>
-                                    </>
-                                )}
-                            </button>
-
                             <a
-                                href={`https://wa.me/573114020157?text=¡Hola!%20Quiero%20comprar%20el%20producto:%20*${encodeURIComponent(product.name)}*%20(Cantidad:%20${quantity},%20Precio:%20${money(product.price * quantity)})`}
+                                href="https://wa.me/573114020157?text=¡Hola!%20Quiero%20hacer%20una%20consulta%20sobre%20productos%20en%20Stefmol."
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="w-full rounded-full bg-[#25D366] hover:bg-[#20ba5a] text-white py-3.5 font-bold flex justify-center items-center gap-2 shadow-md transition-colors text-sm text-center"
+                                className="w-full py-3 px-4 rounded-full bg-[#90247C] hover:bg-[#781B66] text-white font-semibold flex items-center justify-center gap-2 shadow-md transition-colors text-sm"
                             >
                                 <MessageCircle size={18} />
-                                <span>Comprar directamente por WhatsApp</span>
+                                <span>Escribir por WhatsApp</span>
                             </a>
                         </div>
 
                     </div>
-
                 </div>
-            </div>
+            )}
+
+            {/* SECCIÓN HERO / PORTADA */}
+            <section className="hero-bg text-white">
+                <div className="mx-auto max-w-7xl px-6 py-14 md:py-24 grid md:grid-cols-2 items-center gap-8">
+                    <div className="text-center flex flex-col items-center justify-center">
+                        <p className="text-pink-300 italic text-xl md:text-2xl">Explora tu lado más</p>
+                        <h1 className="brand-script text-7xl md:text-9xl text-pink-400 leading-tight">Hot ♡</h1>
+                        <p className="tracking-widest text-xs md:text-sm mt-2 text-pink-100/90 uppercase">JUGUETES, LENCERÍA,<br /> ACCESORIOS Y MUCHO MÁS</p>
+                        <a href="#catalogo" className="inline-flex items-center gap-4 rounded-full pink-gradient px-8 py-4 mt-8 font-bold text-white shadow-lg shadow-pink-900/30 hover:scale-105 active:scale-95 transition-all">
+                            VER PRODUCTOS <ArrowRight size={20} />
+                        </a>
+                    </div>
+
+                    <div
+                        onClick={() => {
+                            setCategory("Promociones del Mes");
+                            const el = document.getElementById("catalogo");
+                            if (el) el.scrollIntoView({ behavior: "smooth" });
+                        }}
+                        className="rounded-3xl border border-pink-300/30 bg-gradient-to-br from-pink-500/20 to-black/50 min-h-64 md:min-h-80 flex items-center justify-center text-center p-8 cursor-pointer hover:border-pink-400 transition-all shadow-xl hover:scale-[1.01] group"
+                    >
+                        <div>
+                            <Heart className="mx-auto text-pink-300 group-hover:scale-110 transition-transform" size={52} />
+                            <p className="brand-script text-4xl text-pink-200 mt-4">Promociones del Mes</p>
+                            <p className="text-xs text-pink-200/80 mt-3 font-semibold uppercase tracking-wider">Haz clic aquí para ver ofertas especiales ✨</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* TARJETAS INFORMATIVAS */}
+            <section className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-7xl mx-auto px-5 -mt-5 relative z-10">
+                {[
+                    { icon: <Truck className="text-pink-600" />, title: "Envíos discretos" },
+                    { icon: <LockKeyhole className="text-pink-600" />, title: "Compra segura" },
+                    { icon: <Heart className="text-pink-600" />, title: "+18 Solo adultos" },
+                    { icon: <MessageCircle className="text-pink-600" />, title: "Pedido por WhatsApp" }
+                ].map(x => (
+                    <div key={x.title} className="bg-white rounded-xl p-4 soft-shadow text-center text-rose-900 flex flex-col items-center gap-2 border border-rose-100/60">
+                        {x.icon}
+                        <span className="text-xs md:text-sm font-semibold">{x.title}</span>
+                    </div>
+                ))}
+            </section>
+
+            {/* CATÁLOGO DE PRODUCTOS */}
+            <section id="catalogo" className="max-w-7xl mx-auto px-5 py-12">
+                <div className="flex flex-wrap justify-between items-end gap-4 mb-6">
+                    <div>
+                        <p className="text-pink-600 font-semibold text-sm tracking-wider">ENCUENTRA TUS FAVORITOS</p>
+                        <h2 className="text-3xl font-black text-slate-900">{category}</h2>
+                    </div>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                        <input
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            placeholder="Buscar productos..."
+                            className="border border-gray-200 rounded-full py-2.5 pl-10 pr-4 w-64 max-w-full outline-pink-400 bg-white text-slate-800 soft-shadow text-sm"
+                        />
+                    </div>
+                </div>
+
+                {/* Chips / Botones con las mismas secciones del menú */}
+                <div className="flex gap-2 overflow-x-auto pb-4">
+                    {menuSections.map(s => (
+                        <button
+                            key={s.cat}
+                            onClick={() => setCategory(s.cat)}
+                            className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all ${category === s.cat
+                                ? "pink-gradient text-white shadow-md shadow-pink-500/20"
+                                : "bg-white border border-gray-200 text-slate-700 hover:bg-gray-50"
+                                }`}
+                        >
+                            {s.name}
+                        </button>
+                    ))}
+                </div>
+
+                {loading && <p className="text-gray-500 py-3">Cargando catálogo…</p>}
+
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                    {visible.map(p => {
+                        const isAdded = addedId === p.id;
+                        return (
+                            <article key={p.id} className="bg-white rounded-2xl p-3 soft-shadow flex flex-col justify-between border border-pink-100/50 hover:shadow-md transition-all">
+                                <div>
+                                    <a
+                                        href={`/producto/${p.id}`}
+                                        className="aspect-square rounded-xl bg-gradient-to-br from-pink-50 to-rose-100 overflow-hidden flex items-center justify-center relative cursor-pointer group block"
+                                    >
+                                        {p.image_url ? (
+                                            <img src={p.image_url} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                        ) : (
+                                            <div className="text-center p-4 group-hover:scale-105 transition-transform">
+                                                <Heart size={44} className="text-pink-400 mx-auto" />
+                                                <p className="text-xs text-pink-700 mt-3 font-semibold">Ver detalle</p>
+                                            </div>
+                                        )}
+                                        {p.promo && (
+                                            <span className="absolute top-2 left-2 bg-pink-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+                                                Promo
+                                            </span>
+                                        )}
+                                    </a>
+
+                                    <a href={`/producto/${p.id}`}>
+                                        <h3 className="font-semibold mt-3 leading-snug text-slate-900 cursor-pointer hover:text-pink-600 transition-colors">
+                                            {p.name}
+                                        </h3>
+                                    </a>
+                                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{p.description}</p>
+                                </div>
+
+                                <div>
+                                    <p className="text-pink-600 font-black text-lg mt-3">{money(p.price)}</p>
+
+                                    <button
+                                        onClick={() => add(p)}
+                                        className={`w-full rounded-xl p-3 mt-3 flex justify-center items-center gap-2 font-bold transition-all duration-300 transform active:scale-95 shadow-md ${isAdded
+                                                ? "bg-emerald-600 text-white scale-102 shadow-emerald-500/30"
+                                                : "pink-gradient text-white shadow-pink-500/20 hover:shadow-pink-500/40"
+                                            }`}
+                                    >
+                                        {isAdded ? (
+                                            <>
+                                                <CheckCircle2 size={17} className="animate-bounce" />
+                                                <span>¡Agregado!</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Plus size={17} />
+                                                <span>Agregar</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </article>
+                        );
+                    })}
+                </div>
+
+                {!visible.length && <p className="py-12 text-center text-gray-500">No encontramos productos en esta categoría.</p>}
+            </section>
+
+            {/* FOOTER */}
+            <footer className="bg-[#0c060a] text-white px-5 py-10">
+                <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center text-sm">
+                    {[
+                        { icon: <Truck />, t: "ENVÍOS DISCRETOS" },
+                        { icon: <LockKeyhole />, t: "COMPRA SEGURA" },
+                        { icon: <Heart />, t: "+18 SOLO ADULTOS" },
+                        { icon: <Headset />, t: "ATENCIÓN POR WHATSAPP" }
+                    ].map(x => (
+                        <div key={x.t} className="flex flex-col items-center gap-3 text-pink-300">
+                            {x.icon}
+                            <span className="text-white/80 text-xs tracking-wider">{x.t}</span>
+                        </div>
+                    ))}
+                </div>
+                <p className="text-center text-xs text-white/50 mt-8">© {new Date().getFullYear()} Stefmol · Tienda para mayores de 18 años.</p>
+                <p className="text-center mt-3"><a className="text-pink-300 underline text-xs" href="/admin">Administrar productos</a></p>
+            </footer>
+
+            {/* CARRITO / CHECKOUT DRAWER */}
+            {cartOpen && (
+                <div className="fixed inset-0 z-50 bg-black/60 flex justify-end">
+                    <div className="bg-white w-full max-w-lg h-full overflow-y-auto p-5 md:p-7 text-slate-800 flex flex-col justify-between">
+                        <div>
+                            <div className="flex items-center justify-between border-b pb-4">
+                                <h2 className="text-2xl font-black">Mi carrito ({cart.reduce((s, p) => s + p.quantity, 0)})</h2>
+                                <button onClick={() => setCartOpen(false)} aria-label="Cerrar" className="p-2 rounded-full hover:bg-gray-100"><X /></button>
+                            </div>
+
+                            {!cart.length ? (
+                                <div className="text-center py-20 text-gray-500">
+                                    <ShoppingCart size={44} className="mx-auto mb-4 text-gray-400" />
+                                    Tu carrito está vacío.
+                                </div>
+                            ) : (
+                                <div className="divide-y mt-2">
+                                    {cart.map(p => (
+                                        <div key={p.id} className="py-4 flex gap-3 items-center">
+                                            <div className="w-20 h-20 rounded-lg bg-pink-50 overflow-hidden flex items-center justify-center border border-pink-100">
+                                                {p.image_url ? <img src={p.image_url} className="w-full h-full object-cover" alt={p.name} /> : <Heart className="text-pink-400" />}
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="font-semibold text-slate-900">{p.name}</p>
+                                                <p className="text-pink-600 font-bold">{money(p.price)}</p>
+                                                <div className="flex items-center gap-3 mt-2">
+                                                    <button className="border rounded p-1 bg-white hover:bg-gray-50" onClick={() => qty(p.id, -1)}><Minus size={14} /></button>
+                                                    <span className="font-bold">{p.quantity}</span>
+                                                    <button className="border rounded p-1 bg-white hover:bg-gray-50" onClick={() => qty(p.id, 1)}><Plus size={14} /></button>
+                                                    <button className="ml-auto text-gray-400 hover:text-red-600" onClick={() => setCart(old => old.filter(x => x.id !== p.id))}><Trash2 size={17} /></button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {cart.length > 0 && (
+                            <div className="border-t pt-4 mt-4">
+                                <label className="block text-sm font-semibold mb-2">Notas del pedido (opcional)</label>
+                                <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Color, talla, referencias…" className="w-full border rounded-xl p-3 min-h-20 text-sm focus:outline-pink-400" />
+
+                                <div className="flex justify-between text-xl font-black my-4">
+                                    <span>Total:</span>
+                                    <span className="text-pink-600">{money(total)}</span>
+                                </div>
+
+                                <button onClick={checkout} className="w-full rounded-full bg-green-600 hover:bg-green-700 text-white py-4 font-bold flex justify-center items-center gap-2 shadow-lg shadow-green-600/30 transition-all">
+                                    <MessageCircle /> Enviar pedido por WhatsApp
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </main>
     );
 }
