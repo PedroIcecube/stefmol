@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ImagePlus, LoaderCircle, PlusCircle, CheckCircle2, X, Trash2, Edit3 } from "lucide-react";
+import { ArrowLeft, ImagePlus, LoaderCircle, PlusCircle, CheckCircle2, X, Trash2, Edit3, Lock, LogOut } from "lucide-react";
 
 type CategoryStructure = {
     name: string;
@@ -38,7 +38,9 @@ type Product = {
 
 export default function Admin() {
     const [password, setPassword] = useState("");
-    const [editingId, setEditingId] = useState<string | null>(null); // ID del producto si estamos editando
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [name, setName] = useState("");
     const [price, setPrice] = useState("");
     const [category, setCategory] = useState("Juguetes");
@@ -47,17 +49,19 @@ export default function Admin() {
 
     const [files, setFiles] = useState<File[]>([]);
     const [previews, setPreviews] = useState<string[]>([]);
-    const [existingImages, setExistingImages] = useState<string[]>([]); // Fotos previas al editar
+    const [existingImages, setExistingImages] = useState<string[]>([]);
 
     const [products, setProducts] = useState<Product[]>([]);
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState("");
     const [error, setError] = useState(false);
 
-    // Cargar productos para la lista de administración
+    // Cargar productos únicamente cuando el usuario esté autenticado
     useEffect(() => {
-        fetchProducts();
-    }, []);
+        if (isAuthenticated) {
+            fetchProducts();
+        }
+    }, [isAuthenticated]);
 
     function fetchProducts() {
         fetch("/api/products")
@@ -66,6 +70,19 @@ export default function Admin() {
                 if (Array.isArray(d)) setProducts(d);
             })
             .catch(() => { });
+    }
+
+    function handleLogin(e: React.FormEvent) {
+        e.preventDefault();
+        if (!password) return;
+        // Marca como autenticado temporalmente para permitir ver el panel
+        setIsAuthenticated(true);
+    }
+
+    function handleLogout() {
+        setIsAuthenticated(false);
+        setPassword("");
+        setProducts([]);
     }
 
     function handleCategoryChange(newCat: string) {
@@ -95,7 +112,6 @@ export default function Admin() {
         setExistingImages(prev => prev.filter((_, i) => i !== index));
     }
 
-    // Cargar datos de un producto en el formulario para editarlo
     function startEdit(product: Product) {
         setEditingId(product.id);
         setName(product.name);
@@ -120,10 +136,6 @@ export default function Admin() {
     }
 
     async function handleDelete(id: string) {
-        if (!password) {
-            alert("Por favor ingresa la contraseña de administrador arriba para confirmar la eliminación.");
-            return;
-        }
         if (!confirm("¿Estás seguro de eliminar este producto?")) return;
 
         try {
@@ -132,7 +144,7 @@ export default function Admin() {
                 headers: { "x-admin-password": password }
             });
             const d = await r.json();
-            if (!r.ok) throw new Error(d.error || "No se pudo eliminar");
+            if (!r.ok) throw new Error(d.error || "No autorizado o clave incorrecta");
 
             setMessage("¡Producto eliminado correctamente!");
             fetchProducts();
@@ -151,7 +163,6 @@ export default function Admin() {
         try {
             const uploadedUrls: string[] = [...existingImages];
 
-            // Subir nuevas imágenes si se seleccionaron
             for (const file of files) {
                 const fd = new FormData();
                 fd.append("file", file);
@@ -186,7 +197,7 @@ export default function Admin() {
             });
 
             const d = await r.json();
-            if (!r.ok) throw new Error(d.error || "No se pudo guardar el producto");
+            if (!r.ok) throw new Error(d.error || "No autorizado o clave incorrecta");
 
             setMessage(editingId ? "¡Producto actualizado con éxito!" : "¡Producto guardado exitosamente!");
             cancelEdit();
@@ -199,16 +210,63 @@ export default function Admin() {
         }
     }
 
+    // PANTALLA DE BLOQUEO DE SEGURIDAD
+    if (!isAuthenticated) {
+        return (
+            <main className="min-h-screen bg-gradient-to-br from-rose-50 to-white flex items-center justify-center p-5">
+                <div className="bg-white rounded-3xl shadow-xl border border-pink-100 p-8 max-w-md w-full text-center">
+                    <div className="w-16 h-16 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Lock size={32} />
+                    </div>
+                    <div className="brand-script text-4xl text-pink-600">Stefmol</div>
+                    <h1 className="text-xl font-bold text-slate-800 mt-2 mb-6">Acceso Privado Administrador</h1>
+
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <input
+                            required
+                            type="password"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            className="w-full border rounded-xl p-3 focus:outline-pink-500 text-center text-lg"
+                            placeholder="Contraseña de administrador"
+                        />
+                        <button
+                            type="submit"
+                            className="w-full rounded-xl pink-gradient text-white font-bold py-3.5 shadow-lg shadow-pink-500/20 cursor-pointer"
+                        >
+                            Ingresar al panel
+                        </button>
+                    </form>
+
+                    <div className="mt-6">
+                        <Link href="/" className="text-xs text-gray-500 hover:underline">
+                            ← Volver a la tienda
+                        </Link>
+                    </div>
+                </div>
+            </main>
+        );
+    }
+
     const currentCategoryObj = categoryStructure.find(c => c.name === category);
 
+    // PANEL DE ADMINISTRACIÓN (SOLO VISIBLE CON CLAVE)
     return (
         <main className="min-h-screen bg-gradient-to-br from-rose-50 to-white p-5 md:p-10">
             <div className="max-w-3xl mx-auto">
-                <Link href="/" className="inline-flex items-center gap-2 text-pink-700 mb-7 hover:underline">
-                    <ArrowLeft size={18} /> Volver a la tienda
-                </Link>
+                <div className="flex items-center justify-between mb-7">
+                    <Link href="/" className="inline-flex items-center gap-2 text-pink-700 hover:underline">
+                        <ArrowLeft size={18} /> Volver a la tienda
+                    </Link>
+                    <button
+                        onClick={handleLogout}
+                        className="inline-flex items-center gap-2 text-xs bg-red-50 text-red-600 px-3 py-2 rounded-xl font-semibold hover:bg-red-100 transition-colors cursor-pointer"
+                    >
+                        <LogOut size={14} /> Cerrar sesión
+                    </button>
+                </div>
 
-                {/* FORMULARIO DE CREACIÓN / EDICIÓN */}
+                {/* FORMULARIO */}
                 <div className="bg-white rounded-3xl shadow-xl border border-pink-100 p-6 md:p-9 mb-10">
                     <div className="flex justify-between items-center">
                         <div>
@@ -229,18 +287,6 @@ export default function Admin() {
                     </div>
 
                     <form onSubmit={submit} className="mt-7 space-y-5">
-                        <div>
-                            <label className="block text-sm font-semibold mb-2">Contraseña de administrador</label>
-                            <input
-                                required
-                                type="password"
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                className="w-full border rounded-xl p-3 focus:outline-pink-500"
-                                placeholder="Contraseña configurada en Vercel"
-                            />
-                        </div>
-
                         <div>
                             <label className="block text-sm font-semibold mb-2">Nombre del producto</label>
                             <input
@@ -323,7 +369,6 @@ export default function Admin() {
                                 />
                             </label>
 
-                            {/* FOTOS EXISTENTES AL EDITAR */}
                             {existingImages.length > 0 && (
                                 <div className="mt-4">
                                     <p className="text-xs font-bold text-gray-500 mb-2">Imágenes actuales:</p>
@@ -344,7 +389,6 @@ export default function Admin() {
                                 </div>
                             )}
 
-                            {/* NUEVAS VISTAS PREVIAS */}
                             {previews.length > 0 && (
                                 <div className="mt-4">
                                     <p className="text-xs font-bold text-gray-500 mb-2">Nuevas imágenes a subir:</p>
@@ -390,7 +434,7 @@ export default function Admin() {
                     </form>
                 </div>
 
-                {/* LISTADO DE PRODUCTOS PARA EDITAR O ELIMINAR */}
+                {/* INVENTARIO */}
                 <div className="bg-white rounded-3xl shadow-xl border border-pink-100 p-6 md:p-9">
                     <h2 className="text-xl font-black mb-4">Inventario de Productos ({products.length})</h2>
                     <div className="space-y-3">
