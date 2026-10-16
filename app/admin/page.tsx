@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Edit3, Check, X, ArrowLeft, Image as ImageIcon, Sparkles, Upload } from "lucide-react";
+import { Plus, Trash2, Edit3, Check, X, ArrowLeft, Image as ImageIcon, Sparkles, Upload, Lock, KeyRound } from "lucide-react";
+
+// 🔑 CAMBIA ESTA CONTRASEÑA POR LA QUE TÚ QUIERAS USAR
+const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "1000440962";
 
 type Product = {
     id: string;
@@ -23,6 +26,10 @@ const categoryStructure = [
 ];
 
 export default function AdminPage() {
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [inputPassword, setInputPassword] = useState("");
+    const [passwordError, setPasswordError] = useState(false);
+
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -37,8 +44,35 @@ export default function AdminPage() {
     const [promo, setPromo] = useState(false);
 
     useEffect(() => {
-        loadProducts();
+        // Comprobar si ya había iniciado sesión en la sesión actual
+        const sessionAuth = sessionStorage.getItem("admin_auth");
+        if (sessionAuth === "true") {
+            setIsAuthenticated(true);
+        }
     }, []);
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            loadProducts();
+        }
+    }, [isAuthenticated]);
+
+    function handleLogin(e: React.FormEvent) {
+        e.preventDefault();
+        if (inputPassword === ADMIN_PASSWORD) {
+            setIsAuthenticated(true);
+            sessionStorage.setItem("admin_auth", "true");
+            setPasswordError(false);
+        } else {
+            setPasswordError(true);
+        }
+    }
+
+    function handleLogout() {
+        setIsAuthenticated(false);
+        sessionStorage.removeItem("admin_auth");
+        setInputPassword("");
+    }
 
     function loadProducts() {
         setLoading(true);
@@ -74,7 +108,6 @@ export default function AdminPage() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    // Función para convertir la imagen seleccionada del Celular/PC a Base64 (para que se guarde y muestre de inmediato)
     function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -141,6 +174,68 @@ export default function AdminPage() {
         }
     }
 
+    // --- PANTALLA DE SOLICITUD DE CONTRASEÑA ---
+    if (!isAuthenticated) {
+        return (
+            <main className="min-h-screen bg-[#FAF0EE] text-[#3B3B3B] flex items-center justify-center p-4">
+                <div className="bg-white max-w-md w-full p-8 rounded-3xl shadow-2xl border border-[#F5D9D6] space-y-6 text-center">
+                    <div className="w-16 h-16 bg-gradient-to-tr from-[#B76E79] to-[#CFA18D] rounded-2xl flex items-center justify-center mx-auto text-white shadow-md">
+                        <Lock size={32} />
+                    </div>
+
+                    <div>
+                        <h1 className="brand-script text-4xl rose-gold-text">Stefmol Admin</h1>
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
+                            Acceso Restringido
+                        </p>
+                    </div>
+
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <div className="text-left">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-2">
+                                Ingresa tu contraseña:
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type="password"
+                                    value={inputPassword}
+                                    onChange={(e) => {
+                                        setInputPassword(e.target.value);
+                                        setPasswordError(false);
+                                    }}
+                                    placeholder="••••••••"
+                                    className="w-full border border-gray-300 rounded-xl p-3.5 pl-11 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
+                                    required
+                                />
+                                <KeyRound size={18} className="absolute left-3.5 top-3.5 text-gray-400" />
+                            </div>
+                            {passwordError && (
+                                <p className="text-xs text-red-600 font-bold mt-2">
+                                    Contraseña incorrecta. Inténtalo de nuevo.
+                                </p>
+                            )}
+                        </div>
+
+                        <button
+                            type="submit"
+                            className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-sm uppercase tracking-wider shadow-lg hover:opacity-95 active:scale-[0.98] transition-all cursor-pointer"
+                        >
+                            Ingresar al Panel
+                        </button>
+                    </form>
+
+                    <a
+                        href="/"
+                        className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#B76E79] font-bold transition-colors"
+                    >
+                        <ArrowLeft size={14} /> Volver a la Tienda
+                    </a>
+                </div>
+            </main>
+        );
+    }
+
+    // --- PANEL DE ADMINISTRACIÓN PRINCIPAL ---
     const currentSubcategories = categoryStructure.find((c) => c.name === category)?.subcategories || [];
 
     return (
@@ -148,14 +243,20 @@ export default function AdminPage() {
             <div className="max-w-5xl mx-auto space-y-8">
 
                 {/* ENCABEZADO ADMIN */}
-                <div className="flex items-center justify-between bg-gradient-to-r from-[#3B3B3B] via-[#1A1A1A] to-[#000000] p-6 rounded-3xl text-white shadow-xl border border-[#CFA18D]/30">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-[#3B3B3B] via-[#1A1A1A] to-[#000000] p-6 rounded-3xl text-white shadow-xl border border-[#CFA18D]/30">
                     <div>
                         <a href="/" className="inline-flex items-center gap-2 text-xs text-[#CFA18D] hover:text-white font-bold mb-2 transition-colors">
                             <ArrowLeft size={16} /> Volver a la Tienda
                         </a>
                         <h1 className="brand-script text-4xl md:text-5xl rose-gold-text">Administración Stefmol</h1>
-                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión Libre de Catálogo</p>
+                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión Protegida de Catálogo</p>
                     </div>
+                    <button
+                        onClick={handleLogout}
+                        className="py-2 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-[#CFA18D] text-xs font-bold transition-colors cursor-pointer border border-[#CFA18D]/30"
+                    >
+                        Cerrar Sesión
+                    </button>
                 </div>
 
                 {/* FORMULARIO AGREGAR / EDITAR */}
