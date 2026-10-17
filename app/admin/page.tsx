@@ -1,15 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Edit3, Check, X, ArrowLeft, Image as ImageIcon, Sparkles, Upload, Lock, KeyRound } from "lucide-react";
-import { createClient } from "@supabase/supabase-js";
-
-// Conexión directa a Supabase
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "stefmol2026";
+import { Plus, Trash2, Edit3, Check, X, ArrowLeft, Image as ImageIcon, Sparkles } from "lucide-react";
 
 type Product = {
     id: string;
@@ -31,10 +23,6 @@ const categoryStructure = [
 ];
 
 export default function AdminPage() {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [inputPassword, setInputPassword] = useState("");
-    const [passwordError, setPasswordError] = useState(false);
-
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -45,60 +33,22 @@ export default function AdminPage() {
     const [category, setCategory] = useState("Juguetes");
     const [subcategory, setSubcategory] = useState("");
     const [price, setPrice] = useState("");
-    const [images, setImages] = useState<string[]>([]);
-    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [imageUrl, setImageUrl] = useState("");
     const [promo, setPromo] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        const sessionAuth = sessionStorage.getItem("admin_auth");
-        if (sessionAuth === "true") {
-            setIsAuthenticated(true);
-        }
+        loadProducts();
     }, []);
 
-    useEffect(() => {
-        if (isAuthenticated) {
-            loadProducts();
-        }
-    }, [isAuthenticated]);
-
-    function handleLogin(e: React.FormEvent) {
-        e.preventDefault();
-        if (inputPassword === ADMIN_PASSWORD) {
-            setIsAuthenticated(true);
-            sessionStorage.setItem("admin_auth", "true");
-            setPasswordError(false);
-        } else {
-            setPasswordError(true);
-        }
-    }
-
-    function handleLogout() {
-        setIsAuthenticated(false);
-        sessionStorage.removeItem("admin_auth");
-        setInputPassword("");
-    }
-
-    // 1. CARGAR PRODUCTOS DIRECTO DE SUPABASE
-    async function loadProducts() {
+    function loadProducts() {
         setLoading(true);
-        try {
-            const { data, error } = await supabase
-                .from("products")
-                .select("*")
-                .order("id", { ascending: false });
-
-            if (error) {
-                console.error("Error al cargar:", error.message);
-            } else if (data) {
-                setProducts(data);
-            }
-        } catch (err) {
-            console.error("Error de conexión:", err);
-        } finally {
-            setLoading(false);
-        }
+        fetch("/api/products")
+            .then((r) => (r.ok ? r.json() : []))
+            .then((data) => {
+                if (Array.isArray(data)) setProducts(data);
+            })
+            .catch(() => { })
+            .finally(() => setLoading(false));
     }
 
     function resetForm() {
@@ -107,8 +57,7 @@ export default function AdminPage() {
         setCategory("Juguetes");
         setSubcategory("");
         setPrice("");
-        setImages([]);
-        setSelectedFiles([]);
+        setImageUrl("");
         setPromo(false);
         setEditingId(null);
     }
@@ -120,80 +69,11 @@ export default function AdminPage() {
         setCategory(p.category || "Juguetes");
         setSubcategory(p.subcategory || "");
         setPrice(p.price ? String(p.price) : "");
-
-        const existingImages: string[] = [];
-        if (p.image_urls && p.image_urls.length > 0) {
-            existingImages.push(...p.image_urls);
-        } else if (p.image_url) {
-            existingImages.push(p.image_url);
-        }
-        setImages(existingImages);
-        setSelectedFiles([]);
-
+        setImageUrl(p.image_url || "");
         setPromo(Boolean(p.promo));
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    function handleFileSelection(e: React.ChangeEvent<HTMLInputElement>) {
-        const files = Array.from(e.target.files || []);
-        if (!files.length) return;
-
-        setSelectedFiles((prev) => [...prev, ...files]);
-
-        files.forEach((file) => {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                if (ev.target?.result) {
-                    setImages((prev) => [...prev, ev.target!.result as string]);
-                }
-            };
-            reader.readAsDataURL(file);
-        });
-    }
-
-    // Subir archivos al Storage de Supabase
-    async function uploadFilesToSupabase(files: File[]): Promise<string[]> {
-        const uploadedUrls: string[] = [];
-
-        for (const file of files) {
-            const fileExt = file.name.split(".").pop();
-            const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-            const filePath = `products/${fileName}`;
-
-            const { error } = await supabase.storage
-                .from("products")
-                .upload(filePath, file, { cacheControl: "3600", upsert: true });
-
-            if (error) {
-                console.error("Error subiendo archivo:", error.message);
-                continue;
-            }
-
-            const { data: publicUrlData } = supabase.storage
-                .from("products")
-                .getPublicUrl(filePath);
-
-            if (publicUrlData?.publicUrl) {
-                uploadedUrls.push(publicUrlData.publicUrl);
-            }
-        }
-
-        return uploadedUrls;
-    }
-
-    function removeImage(index: number) {
-        setImages((prev) => prev.filter((_, i) => i !== index));
-    }
-
-    function handleCategoryChange(newCategory: string) {
-        setCategory(newCategory);
-        const catData = categoryStructure.find((c) => c.name === newCategory);
-        if (!catData || !catData.subcategories.includes(subcategory)) {
-            setSubcategory("");
-        }
-    }
-
-    // 2. GUARDAR / EDITAR DIRECTO EN SUPABASE
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
 
@@ -202,134 +82,51 @@ export default function AdminPage() {
             return;
         }
 
-        setIsSaving(true);
+        // Permite emojis y cualquier carácter UTF-8
+        const payload = {
+            name: name,
+            description: description,
+            category: category,
+            subcategory: subcategory,
+            price: Number(price),
+            image_url: imageUrl,
+            promo: promo,
+        };
 
         try {
-            let finalUrls = images.filter((img) => img.startsWith("http"));
+            const url = editingId ? `/api/products/${editingId}` : "/api/products";
+            const method = editingId ? "PUT" : "POST";
 
-            if (selectedFiles.length > 0) {
-                const newUploadedUrls = await uploadFilesToSupabase(selectedFiles);
-                finalUrls = [...finalUrls, ...newUploadedUrls];
-            }
+            const res = await fetch(url, {
+                method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
 
-            const productData = {
-                name: name.trim(),
-                description: description.trim(),
-                category,
-                subcategory: subcategory || null,
-                price: Number(price),
-                image_url: finalUrls[0] || "",
-                image_urls: finalUrls,
-                promo,
-            };
-
-            if (editingId) {
-                // ACTUALIZAR REGISTRO
-                const { error } = await supabase
-                    .from("products")
-                    .update(productData)
-                    .eq("id", editingId);
-
-                if (error) throw error;
-                alert("¡Producto actualizado con éxito!");
+            if (res.ok) {
+                resetForm();
+                loadProducts();
             } else {
-                // INSERTAR NUEVO REGISTRO
-                const { error } = await supabase
-                    .from("products")
-                    .insert([productData]);
-
-                if (error) throw error;
-                alert("¡Producto publicado con éxito!");
+                alert("Ocurrió un error al guardar el producto.");
             }
-
-            resetForm();
-            loadProducts();
-        } catch (err: any) {
-            console.error("Error al guardar:", err);
-            alert(`Error al guardar: ${err.message || "Verifica los campos"}`);
-        } finally {
-            setIsSaving(false);
+        } catch {
+            alert("Error de conexión al guardar.");
         }
     }
 
-    // 3. ELIMINAR DIRECTO EN SUPABASE
     async function handleDelete(id: string) {
         if (!confirm("¿Estás seguro de que deseas eliminar este producto?")) return;
 
         try {
-            const { error } = await supabase
-                .from("products")
-                .delete()
-                .eq("id", id);
-
-            if (error) throw error;
-
-            loadProducts();
-            alert("¡Producto eliminado correctamente!");
-        } catch (err: any) {
-            console.error("Error al eliminar:", err);
-            alert(`No se pudo eliminar el producto: ${err.message || "Error desconocido"}`);
+            const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
+            if (res.ok) {
+                loadProducts();
+            } else {
+                alert("No se pudo eliminar el producto.");
+            }
+        } catch {
+            alert("Error al conectar con el servidor.");
         }
-    }
-
-    if (!isAuthenticated) {
-        return (
-            <main className="min-h-screen bg-[#FAF0EE] text-[#3B3B3B] flex items-center justify-center p-4">
-                <div className="bg-white max-w-md w-full p-8 rounded-3xl shadow-2xl border border-[#F5D9D6] space-y-6 text-center">
-                    <div className="w-16 h-16 bg-gradient-to-tr from-[#B76E79] to-[#CFA18D] rounded-2xl flex items-center justify-center mx-auto text-white shadow-md">
-                        <Lock size={32} />
-                    </div>
-
-                    <div>
-                        <h1 className="brand-script text-4xl rose-gold-text">Stefmol Admin</h1>
-                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
-                            Acceso Restringido
-                        </p>
-                    </div>
-
-                    <form onSubmit={handleLogin} className="space-y-4">
-                        <div className="text-left">
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-2">
-                                Ingresa tu contraseña:
-                            </label>
-                            <div className="relative">
-                                <input
-                                    type="password"
-                                    value={inputPassword}
-                                    onChange={(e) => {
-                                        setInputPassword(e.target.value);
-                                        setPasswordError(false);
-                                    }}
-                                    placeholder="••••••••"
-                                    className="w-full border border-gray-300 rounded-xl p-3.5 pl-11 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
-                                    required
-                                />
-                                <KeyRound size={18} className="absolute left-3.5 top-3.5 text-gray-400" />
-                            </div>
-                            {passwordError && (
-                                <p className="text-xs text-red-600 font-bold mt-2">
-                                    Contraseña incorrecta. Inténtalo de nuevo.
-                                </p>
-                            )}
-                        </div>
-
-                        <button
-                            type="submit"
-                            className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-sm uppercase tracking-wider shadow-lg hover:opacity-95 active:scale-[0.98] transition-all cursor-pointer"
-                        >
-                            Ingresar al Panel
-                        </button>
-                    </form>
-
-                    <a
-                        href="/"
-                        className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#B76E79] font-bold transition-colors"
-                    >
-                        <ArrowLeft size={14} /> Volver a la Tienda
-                    </a>
-                </div>
-            </main>
-        );
     }
 
     const currentSubcategories = categoryStructure.find((c) => c.name === category)?.subcategories || [];
@@ -338,24 +135,18 @@ export default function AdminPage() {
         <main className="min-h-screen bg-[#FAF0EE] text-[#3B3B3B] p-4 md:p-8">
             <div className="max-w-5xl mx-auto space-y-8">
 
-                {/* ENCABEZADO */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-[#3B3B3B] via-[#1A1A1A] to-[#000000] p-6 rounded-3xl text-white shadow-xl border border-[#CFA18D]/30">
+                {/* ENCABEZADO ADMIN */}
+                <div className="flex items-center justify-between bg-gradient-to-r from-[#3B3B3B] via-[#1A1A1A] to-[#000000] p-6 rounded-3xl text-white shadow-xl border border-[#CFA18D]/30">
                     <div>
                         <a href="/" className="inline-flex items-center gap-2 text-xs text-[#CFA18D] hover:text-white font-bold mb-2 transition-colors">
                             <ArrowLeft size={16} /> Volver a la Tienda
                         </a>
                         <h1 className="brand-script text-4xl md:text-5xl rose-gold-text">Administración Stefmol</h1>
-                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión Directa con Supabase</p>
+                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión de Catálogo y Productos</p>
                     </div>
-                    <button
-                        onClick={handleLogout}
-                        className="py-2 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-[#CFA18D] text-xs font-bold transition-colors cursor-pointer border border-[#CFA18D]/30"
-                    >
-                        Cerrar Sesión
-                    </button>
                 </div>
 
-                {/* FORMULARIO */}
+                {/* FORMULARIO AGREGAR / EDITAR */}
                 <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-3xl shadow-lg border border-[#F5D9D6] space-y-6">
                     <div className="flex items-center justify-between border-b border-[#F5D9D6] pb-4">
                         <h2 className="text-xl font-bold text-[#3B3B3B] flex items-center gap-2">
@@ -375,10 +166,10 @@ export default function AdminPage() {
 
                     <div className="grid md:grid-cols-2 gap-4">
 
-                        {/* NOMBRE */}
+                        {/* NOMBRE (ACEPTA EMOJIS) */}
                         <div className="md:col-span-2">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
-                                Nombre del Producto (puedes usar emojis ✨🔥)
+                                Nombre del Producto (puedes incluir emojis ✨🔥)
                             </label>
                             <input
                                 type="text"
@@ -405,15 +196,18 @@ export default function AdminPage() {
                             />
                         </div>
 
-                        {/* CATEGORÍA PRINCIPAL */}
+                        {/* CATEGORÍA */}
                         <div>
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
                                 Categoría Principal
                             </label>
                             <select
                                 value={category}
-                                onChange={(e) => handleCategoryChange(e.target.value)}
-                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30 font-semibold"
+                                onChange={(e) => {
+                                    setCategory(e.target.value);
+                                    setSubcategory("");
+                                }}
+                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
                             >
                                 {categoryStructure.map((c) => (
                                     <option key={c.name} value={c.name}>
@@ -444,39 +238,18 @@ export default function AdminPage() {
                             </div>
                         )}
 
-                        {/* FOTOS */}
-                        <div className="md:col-span-2 space-y-3">
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
-                                Fotos del Producto
+                        {/* URL DE IMAGEN */}
+                        <div className={currentSubcategories.length > 0 ? "" : "md:col-span-2"}>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
+                                URL de la Imagen (Link externo)
                             </label>
-
-                            <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold transition-colors text-center">
-                                <Upload size={24} className="text-[#B76E79]" />
-                                <span className="text-sm font-bold">Seleccionar fotos desde tu celular o PC</span>
-                                <span className="text-xs text-gray-500">Puedes seleccionar varias imágenes a la vez</span>
-                                <input type="file" accept="image/*" multiple onChange={handleFileSelection} className="hidden" />
-                            </label>
-
-                            {images.length > 0 && (
-                                <div className="pt-2">
-                                    <p className="text-xs font-bold text-[#B76E79] mb-2">Fotos asociadas ({images.length}):</p>
-                                    <div className="flex flex-wrap gap-3">
-                                        {images.map((img, idx) => (
-                                            <div key={idx} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-[#CFA18D] shadow-sm bg-black/5">
-                                                <img src={img} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeImage(idx)}
-                                                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-90 hover:opacity-100 transition-opacity cursor-pointer shadow-md"
-                                                    title="Eliminar foto"
-                                                >
-                                                    <X size={12} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                            <input
+                                type="url"
+                                value={imageUrl}
+                                onChange={(e) => setImageUrl(e.target.value)}
+                                placeholder="https://ejemplo.com/imagen.jpg"
+                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
+                            />
                         </div>
 
                         {/* DESCRIPCIÓN */}
@@ -502,22 +275,19 @@ export default function AdminPage() {
                                 className="w-5 h-5 accent-[#B76E79] cursor-pointer"
                             />
                             <label htmlFor="promoCheck" className="text-sm font-bold text-[#3B3B3B] cursor-pointer select-none">
-                                Marcar como "Promoción del Mes"
+                                Marcar como "Promoción del Mes" (Aparecerá en el banner principal y en ofertas especiales ✨)
                             </label>
                         </div>
 
                     </div>
 
-                    {/* BOTÓN GUARDAR */}
+                    {/* BOTÓN ALTA VISIBILIDAD DE GUARDADO / ACTUALIZADO */}
                     <div className="pt-2">
                         <button
                             type="submit"
-                            disabled={isSaving}
-                            className={`w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-base uppercase tracking-wider shadow-xl hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border border-white/20 ${isSaving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                            className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-base uppercase tracking-wider shadow-xl hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border border-white/20 cursor-pointer"
                         >
-                            {isSaving ? (
-                                <span>Guardando directamente en Supabase...</span>
-                            ) : editingId ? (
+                            {editingId ? (
                                 <>
                                     <Check size={20} /> Guardar Cambios del Producto
                                 </>
@@ -530,69 +300,65 @@ export default function AdminPage() {
                     </div>
                 </form>
 
-                {/* LISTADO DE PRODUCTOS */}
+                {/* LISTADO DE PRODUCTOS EXISTENTES */}
                 <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg border border-[#F5D9D6] space-y-4">
                     <h3 className="text-lg font-bold text-[#3B3B3B]">
                         Productos Publicados ({products.length})
                     </h3>
 
                     {loading ? (
-                        <p className="text-sm text-gray-500 py-4">Cargando catálogo...</p>
+                        <p className="text-sm text-gray-500 py-4">Cargando lista de productos…</p>
                     ) : !products.length ? (
                         <p className="text-sm text-gray-500 py-4">Aún no hay productos registrados.</p>
                     ) : (
                         <div className="divide-y divide-gray-100">
-                            {products.map((p) => {
-                                const prodImgs = p.image_urls && p.image_urls.length > 0 ? p.image_urls : p.image_url ? [p.image_url] : [];
+                            {products.map((p) => (
+                                <div key={p.id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
 
-                                return (
-                                    <div key={p.id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-16 h-16 rounded-xl bg-[#FAF0EE] border border-[#F5D9D6] overflow-hidden flex items-center justify-center shrink-0">
+                                            {p.image_url ? (
+                                                <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <ImageIcon size={24} className="text-[#B76E79]" />
+                                            )}
+                                        </div>
 
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-16 h-16 rounded-xl bg-[#FAF0EE] border border-[#F5D9D6] overflow-hidden flex items-center justify-center shrink-0">
-                                                {prodImgs[0] ? (
-                                                    <img src={prodImgs[0]} alt={p.name} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <ImageIcon size={24} className="text-[#B76E79]" />
+                                        <div>
+                                            <h4 className="font-bold text-[#3B3B3B] text-base flex items-center gap-2">
+                                                {p.name}
+                                                {p.promo && (
+                                                    <span className="bg-[#B76E79] text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">
+                                                        Promo
+                                                    </span>
                                                 )}
-                                            </div>
-
-                                            <div>
-                                                <h4 className="font-bold text-[#3B3B3B] text-base flex items-center gap-2">
-                                                    {p.name}
-                                                    {p.promo && (
-                                                        <span className="bg-[#B76E79] text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">
-                                                            Promo
-                                                        </span>
-                                                    )}
-                                                </h4>
-                                                <p className="text-xs text-gray-500">
-                                                    {p.category} {p.subcategory ? `· ${p.subcategory}` : ""} {prodImgs.length > 1 ? `(${prodImgs.length} fotos)` : ""}
-                                                </p>
-                                                <p className="text-sm font-black text-[#B76E79] mt-0.5">
-                                                    ${new Intl.NumberFormat("es-CO").format(p.price)} COP
-                                                </p>
-                                            </div>
+                                            </h4>
+                                            <p className="text-xs text-gray-500">
+                                                {p.category} {p.subcategory ? `· ${p.subcategory}` : ""}
+                                            </p>
+                                            <p className="text-sm font-black text-[#B76E79] mt-0.5">
+                                                ${new Intl.NumberFormat("es-CO").format(p.price)} COP
+                                            </p>
                                         </div>
-
-                                        <div className="flex items-center gap-2 self-end sm:self-center">
-                                            <button
-                                                onClick={() => handleEdit(p)}
-                                                className="py-2 px-4 rounded-xl bg-[#FAF0EE] hover:bg-[#F5D9D6] text-[#B76E79] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-[#CFA18D]/30"
-                                            >
-                                                <Edit3 size={15} /> Editar
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(p.id)}
-                                                className="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-rose-200"
-                                            >
-                                                <Trash2 size={15} /> Eliminar
-                                            </button>
-                                        </div>
-
                                     </div>
-                                );
-                            })}
+
+                                    <div className="flex items-center gap-2 self-end sm:self-center">
+                                        <button
+                                            onClick={() => handleEdit(p)}
+                                            className="py-2 px-4 rounded-xl bg-[#FAF0EE] hover:bg-[#F5D9D6] text-[#B76E79] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-[#CFA18D]/30"
+                                        >
+                                            <Edit3 size={15} /> Editar
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(p.id)}
+                                            className="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-rose-200"
+                                        >
+                                            <Trash2 size={15} /> Eliminar
+                                        </button>
+                                    </div>
+
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>
