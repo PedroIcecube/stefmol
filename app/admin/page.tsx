@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Plus, Trash2, Edit3, Check, X, ArrowLeft, Image as ImageIcon, Sparkles, Upload, Lock, KeyRound } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 
-// Inicializar cliente de Supabase para subidas directas
+// Conexión directa a Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -80,15 +80,25 @@ export default function AdminPage() {
         setInputPassword("");
     }
 
-    function loadProducts() {
+    // 1. CARGAR PRODUCTOS DIRECTO DE SUPABASE
+    async function loadProducts() {
         setLoading(true);
-        fetch("/api/products")
-            .then((r) => (r.ok ? r.json() : []))
-            .then((data) => {
-                if (Array.isArray(data)) setProducts(data);
-            })
-            .catch(() => { })
-            .finally(() => setLoading(false));
+        try {
+            const { data, error } = await supabase
+                .from("products")
+                .select("*")
+                .order("id", { ascending: false });
+
+            if (error) {
+                console.error("Error al cargar:", error.message);
+            } else if (data) {
+                setProducts(data);
+            }
+        } catch (err) {
+            console.error("Error de conexión:", err);
+        } finally {
+            setLoading(false);
+        }
     }
 
     function resetForm() {
@@ -124,14 +134,12 @@ export default function AdminPage() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    // Manejar archivos seleccionados desde Celular/PC
     function handleFileSelection(e: React.ChangeEvent<HTMLInputElement>) {
         const files = Array.from(e.target.files || []);
         if (!files.length) return;
 
         setSelectedFiles((prev) => [...prev, ...files]);
 
-        // Vista previa local inmediata
         files.forEach((file) => {
             const reader = new FileReader();
             reader.onload = (ev) => {
@@ -143,7 +151,7 @@ export default function AdminPage() {
         });
     }
 
-    // Función para subir archivos a Supabase Storage
+    // Subir archivos al Storage de Supabase
     async function uploadFilesToSupabase(files: File[]): Promise<string[]> {
         const uploadedUrls: string[] = [];
 
@@ -152,12 +160,12 @@ export default function AdminPage() {
             const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
             const filePath = `products/${fileName}`;
 
-            const { data, error } = await supabase.storage
+            const { error } = await supabase.storage
                 .from("products")
                 .upload(filePath, file, { cacheControl: "3600", upsert: true });
 
             if (error) {
-                console.error("Error al subir a Supabase Storage:", error.message);
+                console.error("Error subiendo archivo:", error.message);
                 continue;
             }
 
@@ -175,7 +183,6 @@ export default function AdminPage() {
 
     function removeImage(index: number) {
         setImages((prev) => prev.filter((_, i) => i !== index));
-        setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
     }
 
     function handleCategoryChange(newCategory: string) {
@@ -186,6 +193,7 @@ export default function AdminPage() {
         }
     }
 
+    // 2. GUARDAR / EDITAR DIRECTO EN SUPABASE
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
 
@@ -197,16 +205,14 @@ export default function AdminPage() {
         setIsSaving(true);
 
         try {
-            // 1. Mantener las imágenes tipo URL que ya estaban previamente
             let finalUrls = images.filter((img) => img.startsWith("http"));
 
-            // 2. Subir imágenes nuevas a Supabase Storage si hay archivos seleccionados
             if (selectedFiles.length > 0) {
                 const newUploadedUrls = await uploadFilesToSupabase(selectedFiles);
                 finalUrls = [...finalUrls, ...newUploadedUrls];
             }
 
-            const payload = {
+            const productData = {
                 name: name.trim(),
                 description: description.trim(),
                 category,
@@ -217,42 +223,52 @@ export default function AdminPage() {
                 promo,
             };
 
-            const url = editingId ? `/api/products/${editingId}` : "/api/products";
-            const method = editingId ? "PUT" : "POST";
+            if (editingId) {
+                // ACTUALIZAR REGISTRO
+                const { error } = await supabase
+                    .from("products")
+                    .update(productData)
+                    .eq("id", editingId);
 
-            const res = await fetch(url, {
-                method,
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-
-            if (res.ok) {
-                resetForm();
-                loadProducts();
-                alert("¡Producto guardado exitosamente!");
+                if (error) throw error;
+                alert("¡Producto actualizado con éxito!");
             } else {
-                alert("Ocurrió un error al guardar los datos del producto.");
+                // INSERTAR NUEVO REGISTRO
+                const { error } = await supabase
+                    .from("products")
+                    .insert([productData]);
+
+                if (error) throw error;
+                alert("¡Producto publicado con éxito!");
             }
-        } catch {
-            alert("Error de conexión al guardar.");
+
+            resetForm();
+            loadProducts();
+        } catch (err: any) {
+            console.error("Error al guardar:", err);
+            alert(`Error al guardar: ${err.message || "Verifica los campos"}`);
         } finally {
             setIsSaving(false);
         }
     }
 
+    // 3. ELIMINAR DIRECTO EN SUPABASE
     async function handleDelete(id: string) {
         if (!confirm("¿Estás seguro de que deseas eliminar este producto?")) return;
 
         try {
-            const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
-            if (res.ok) {
-                loadProducts();
-                alert("Producto eliminado correctamente.");
-            } else {
-                alert("No se pudo eliminar el producto.");
-            }
-        } catch {
-            alert("Error al conectar con el servidor.");
+            const { error } = await supabase
+                .from("products")
+                .delete()
+                .eq("id", id);
+
+            if (error) throw error;
+
+            loadProducts();
+            alert("¡Producto eliminado correctamente!");
+        } catch (err: any) {
+            console.error("Error al eliminar:", err);
+            alert(`No se pudo eliminar el producto: ${err.message || "Error desconocido"}`);
         }
     }
 
@@ -329,7 +345,7 @@ export default function AdminPage() {
                             <ArrowLeft size={16} /> Volver a la Tienda
                         </a>
                         <h1 className="brand-script text-4xl md:text-5xl rose-gold-text">Administración Stefmol</h1>
-                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión de Catálogo con Supabase Storage</p>
+                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión Directa con Supabase</p>
                     </div>
                     <button
                         onClick={handleLogout}
@@ -428,7 +444,7 @@ export default function AdminPage() {
                             </div>
                         )}
 
-                        {/* FOTOS DEL PRODUCTO */}
+                        {/* FOTOS */}
                         <div className="md:col-span-2 space-y-3">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
                                 Fotos del Producto
@@ -500,7 +516,7 @@ export default function AdminPage() {
                             className={`w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-base uppercase tracking-wider shadow-xl hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border border-white/20 ${isSaving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                         >
                             {isSaving ? (
-                                <span>Subiendo imágenes a Supabase...</span>
+                                <span>Guardando directamente en Supabase...</span>
                             ) : editingId ? (
                                 <>
                                     <Check size={20} /> Guardar Cambios del Producto
