@@ -115,7 +115,7 @@ export default function AdminPage() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    // COMPRESIÓN DE IMÁGENES
+    // COMPRESIÓN ULTRALIGERA PARA SUPERAR EL LÍMITE DE VERCEL (MAX 400px / 0.4 CALIDAD)
     function compressImage(file: File): Promise<string> {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -123,8 +123,8 @@ export default function AdminPage() {
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement("canvas");
-                    const MAX_WIDTH = 500;
-                    const MAX_HEIGHT = 500;
+                    const MAX_WIDTH = 400;
+                    const MAX_HEIGHT = 400;
                     let width = img.width;
                     let height = img.height;
 
@@ -145,7 +145,8 @@ export default function AdminPage() {
                     const ctx = canvas.getContext("2d");
                     ctx?.drawImage(img, 0, 0, width, height);
 
-                    const dataUrl = canvas.toDataURL("image/jpeg", 0.55);
+                    // Calidad super comprimida
+                    const dataUrl = canvas.toDataURL("image/jpeg", 0.4);
                     resolve(dataUrl);
                 };
                 img.src = e.target?.result as string;
@@ -166,16 +167,10 @@ export default function AdminPage() {
         setImages((prev) => prev.filter((_, i) => i !== index));
     }
 
-    // Cambio de Categoría dinámico con reseteo de subcategoría
     function handleCategoryChange(newCategory: string) {
         setCategory(newCategory);
         const catData = categoryStructure.find((c) => c.name === newCategory);
-        if (catData && catData.subcategories.length > 0) {
-            // Si la subcategoría previa no pertenece a la nueva categoría, la reiniciamos
-            if (!catData.subcategories.includes(subcategory)) {
-                setSubcategory("");
-            }
-        } else {
+        if (!catData || !catData.subcategories.includes(subcategory)) {
             setSubcategory("");
         }
     }
@@ -216,7 +211,7 @@ export default function AdminPage() {
                 loadProducts();
                 alert("¡Producto guardado exitosamente!");
             } else {
-                alert("Ocurrió un error al guardar en el servidor. Intenta subir menos fotos o de menor resolución.");
+                alert("Ocurrió un error al guardar en el servidor. Intenta subir menos fotos o fotos más pequeñas.");
             }
         } catch {
             alert("Error de conexión al guardar el producto.");
@@ -313,7 +308,7 @@ export default function AdminPage() {
                             <ArrowLeft size={16} /> Volver a la Tienda
                         </a>
                         <h1 className="brand-script text-4xl md:text-5xl rose-gold-text">Administración Stefmol</h1>
-                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión de Catálogo y Fotos Múltiples</p>
+                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión Protegida de Catálogo</p>
                     </div>
                     <button
                         onClick={handleLogout}
@@ -391,7 +386,7 @@ export default function AdminPage() {
                             </select>
                         </div>
 
-                        {/* SUBCATEGORÍA DINÁMICA */}
+                        {/* SUBCATEGORÍA */}
                         {currentSubcategories.length > 0 && (
                             <div>
                                 <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
@@ -412,16 +407,15 @@ export default function AdminPage() {
                             </div>
                         )}
 
-                        {/* GALERÍA / SUBIR FOTOS */}
+                        {/* FOTOS DEL PRODUCTO */}
                         <div className="md:col-span-2 space-y-2">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
-                                Fotos del Producto (puedes seleccionar varias fotos)
+                                Fotos del Producto
                             </label>
 
                             <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold transition-colors text-center">
                                 <Upload size={24} className="text-[#B76E79]" />
-                                <span className="text-sm font-bold">Haz clic aquí para seleccionar fotos desde tu dispositivo</span>
-                                <span className="text-xs text-gray-500">Puedes seleccionar varias fotos a la vez</span>
+                                <span className="text-sm font-bold">Haz clic aquí para seleccionar fotos</span>
                                 <input type="file" accept="image/*" multiple onChange={handleImagesChange} className="hidden" />
                             </label>
 
@@ -470,7 +464,7 @@ export default function AdminPage() {
                                 className="w-5 h-5 accent-[#B76E79] cursor-pointer"
                             />
                             <label htmlFor="promoCheck" className="text-sm font-bold text-[#3B3B3B] cursor-pointer select-none">
-                                Marcar como "Promoción del Mes" (Aparecerá en el banner principal y en ofertas especiales ✨)
+                                Marcar como "Promoción del Mes"
                             </label>
                         </div>
 
@@ -484,7 +478,7 @@ export default function AdminPage() {
                             className={`w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-base uppercase tracking-wider shadow-xl hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border border-white/20 ${isSaving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                         >
                             {isSaving ? (
-                                <span>Guardando cambios del producto...</span>
+                                <span>Guardando cambios...</span>
                             ) : editingId ? (
                                 <>
                                     <Check size={20} /> Guardar Cambios del Producto
