@@ -41,6 +41,7 @@ export default function AdminPage() {
     const [price, setPrice] = useState("");
     const [images, setImages] = useState<string[]>([]);
     const [promo, setPromo] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         const sessionAuth = sessionStorage.getItem("admin_auth");
@@ -114,7 +115,7 @@ export default function AdminPage() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    // Redimensionar y comprimir imágenes antes de enviarlas para evitar que falle el guardado
+    // COMPRESIÓN AGRESIVA PARA EVITAR EXCEDER LÍMITES DE VERCEL
     function compressImage(file: File): Promise<string> {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -122,8 +123,8 @@ export default function AdminPage() {
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement("canvas");
-                    const MAX_WIDTH = 800;
-                    const MAX_HEIGHT = 800;
+                    const MAX_WIDTH = 500;
+                    const MAX_HEIGHT = 500;
                     let width = img.width;
                     let height = img.height;
 
@@ -144,8 +145,8 @@ export default function AdminPage() {
                     const ctx = canvas.getContext("2d");
                     ctx?.drawImage(img, 0, 0, width, height);
 
-                    // Comprimir a JPEG con calidad 0.75
-                    const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+                    // Calidad ajustada a 0.55 JPEG
+                    const dataUrl = canvas.toDataURL("image/jpeg", 0.55);
                     resolve(dataUrl);
                 };
                 img.src = e.target?.result as string;
@@ -174,6 +175,8 @@ export default function AdminPage() {
             return;
         }
 
+        setIsSaving(true);
+
         const payload = {
             name,
             description,
@@ -200,10 +203,12 @@ export default function AdminPage() {
                 loadProducts();
                 alert("¡Producto guardado exitosamente!");
             } else {
-                alert("Error al guardar. Verifica que las fotos no sean demasiado pesadas.");
+                alert("Ocurrió un error al guardar en el servidor. Intenta subir menos fotos o de menor resolución.");
             }
         } catch {
             alert("Error de conexión al guardar el producto.");
+        } finally {
+            setIsSaving(false);
         }
     }
 
@@ -406,7 +411,7 @@ export default function AdminPage() {
                             <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold transition-colors text-center">
                                 <Upload size={24} className="text-[#B76E79]" />
                                 <span className="text-sm font-bold">Haz clic aquí para seleccionar fotos desde tu dispositivo</span>
-                                <span className="text-xs text-gray-500">Puedes seleccionar 2, 3 o más imágenes juntas</span>
+                                <span className="text-xs text-gray-500">Puedes seleccionar varias fotos a la vez</span>
                                 <input type="file" accept="image/*" multiple onChange={handleImagesChange} className="hidden" />
                             </label>
 
@@ -465,9 +470,12 @@ export default function AdminPage() {
                     <div className="pt-2">
                         <button
                             type="submit"
-                            className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-base uppercase tracking-wider shadow-xl hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border border-white/20 cursor-pointer"
+                            disabled={isSaving}
+                            className={`w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-base uppercase tracking-wider shadow-xl hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border border-white/20 ${isSaving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                         >
-                            {editingId ? (
+                            {isSaving ? (
+                                <span>Guardando y optimizando fotos...</span>
+                            ) : editingId ? (
                                 <>
                                     <Check size={20} /> Guardar Cambios del Producto
                                 </>
