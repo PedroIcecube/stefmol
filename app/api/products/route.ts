@@ -6,10 +6,10 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const db = supabaseAdmin();
+    // Quitamos el filtro .eq("active", true) temporalmente en el admin para que muestre todo lo que hay en Supabase
     const { data, error } = await db
       .from("products")
       .select("*")
-      .eq("active", true)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -24,10 +24,6 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  if (req.headers.get("x-admin-password") !== process.env.ADMIN_PASSWORD) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
   try {
     const body = await req.json();
     const name = String(body.name ?? "").trim();

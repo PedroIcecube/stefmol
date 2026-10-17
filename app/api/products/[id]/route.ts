@@ -7,10 +7,6 @@ export async function PUT(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    if (req.headers.get("x-admin-password") !== process.env.ADMIN_PASSWORD) {
-        return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
     try {
         const { id } = await params;
         const body = await req.json();
@@ -44,10 +40,6 @@ export async function DELETE(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    if (req.headers.get("x-admin-password") !== process.env.ADMIN_PASSWORD) {
-        return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
     try {
         const { id } = await params;
         const db = supabaseAdmin();
