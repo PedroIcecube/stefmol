@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2, Edit3, Check, X, ArrowLeft, Image as ImageIcon, Sparkles, Upload, Lock, KeyRound } from "lucide-react";
 
-// 🔑 CAMBIA ESTA CONTRASEÑA POR LA QUE TÚ QUIERAS USAR
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "1000440962";
 
 type Product = {
@@ -40,11 +39,10 @@ export default function AdminPage() {
     const [category, setCategory] = useState("Juguetes");
     const [subcategory, setSubcategory] = useState("");
     const [price, setPrice] = useState("");
-    const [imageUrl, setImageUrl] = useState("");
+    const [images, setImages] = useState<string[]>([]);
     const [promo, setPromo] = useState(false);
 
     useEffect(() => {
-        // Comprobar si ya había iniciado sesión en la sesión actual
         const sessionAuth = sessionStorage.getItem("admin_auth");
         if (sessionAuth === "true") {
             setIsAuthenticated(true);
@@ -91,7 +89,7 @@ export default function AdminPage() {
         setCategory("Juguetes");
         setSubcategory("");
         setPrice("");
-        setImageUrl("");
+        setImages([]);
         setPromo(false);
         setEditingId(null);
     }
@@ -103,20 +101,69 @@ export default function AdminPage() {
         setCategory(p.category || "Juguetes");
         setSubcategory(p.subcategory || "");
         setPrice(p.price ? String(p.price) : "");
-        setImageUrl(p.image_url || "");
+
+        const existingImages: string[] = [];
+        if (p.image_urls && p.image_urls.length > 0) {
+            existingImages.push(...p.image_urls);
+        } else if (p.image_url) {
+            existingImages.push(p.image_url);
+        }
+        setImages(existingImages);
+
         setPromo(Boolean(p.promo));
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    // Redimensionar y comprimir imágenes antes de enviarlas para evitar que falle el guardado
+    function compressImage(file: File): Promise<string> {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    const MAX_WIDTH = 800;
+                    const MAX_HEIGHT = 800;
+                    let width = img.width;
+                    let height = img.height;
 
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setImageUrl(reader.result as string);
-        };
-        reader.readAsDataURL(file);
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext("2d");
+                    ctx?.drawImage(img, 0, 0, width, height);
+
+                    // Comprimir a JPEG con calidad 0.75
+                    const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+                    resolve(dataUrl);
+                };
+                img.src = e.target?.result as string;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function handleImagesChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+
+        const compressed = await Promise.all(files.map((file) => compressImage(file)));
+        setImages((prev) => [...prev, ...compressed]);
+    }
+
+    function removeImage(index: number) {
+        setImages((prev) => prev.filter((_, i) => i !== index));
     }
 
     async function handleSubmit(e: React.FormEvent) {
@@ -133,7 +180,8 @@ export default function AdminPage() {
             category,
             subcategory,
             price: Number(price),
-            image_url: imageUrl,
+            image_url: images[0] || "",
+            image_urls: images,
             promo,
         };
 
@@ -150,12 +198,12 @@ export default function AdminPage() {
             if (res.ok) {
                 resetForm();
                 loadProducts();
-                alert("¡Producto guardado con éxito!");
+                alert("¡Producto guardado exitosamente!");
             } else {
-                alert("Ocurrió un error al guardar el producto.");
+                alert("Error al guardar. Verifica que las fotos no sean demasiado pesadas.");
             }
         } catch {
-            alert("Error de conexión al guardar.");
+            alert("Error de conexión al guardar el producto.");
         }
     }
 
@@ -174,7 +222,6 @@ export default function AdminPage() {
         }
     }
 
-    // --- PANTALLA DE SOLICITUD DE CONTRASEÑA ---
     if (!isAuthenticated) {
         return (
             <main className="min-h-screen bg-[#FAF0EE] text-[#3B3B3B] flex items-center justify-center p-4">
@@ -235,21 +282,20 @@ export default function AdminPage() {
         );
     }
 
-    // --- PANEL DE ADMINISTRACIÓN PRINCIPAL ---
     const currentSubcategories = categoryStructure.find((c) => c.name === category)?.subcategories || [];
 
     return (
         <main className="min-h-screen bg-[#FAF0EE] text-[#3B3B3B] p-4 md:p-8">
             <div className="max-w-5xl mx-auto space-y-8">
 
-                {/* ENCABEZADO ADMIN */}
+                {/* ENCABEZADO */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-[#3B3B3B] via-[#1A1A1A] to-[#000000] p-6 rounded-3xl text-white shadow-xl border border-[#CFA18D]/30">
                     <div>
                         <a href="/" className="inline-flex items-center gap-2 text-xs text-[#CFA18D] hover:text-white font-bold mb-2 transition-colors">
                             <ArrowLeft size={16} /> Volver a la Tienda
                         </a>
                         <h1 className="brand-script text-4xl md:text-5xl rose-gold-text">Administración Stefmol</h1>
-                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión Protegida de Catálogo</p>
+                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión de Catálogo y Fotos Múltiples</p>
                     </div>
                     <button
                         onClick={handleLogout}
@@ -351,22 +397,37 @@ export default function AdminPage() {
                             </div>
                         )}
 
-                        {/* SELECCIONAR FOTO DESDE CELULAR / PC */}
-                        <div className={currentSubcategories.length > 0 ? "" : "md:col-span-2"}>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
-                                Seleccionar Foto del Producto (Celular o PC)
+                        {/* GALERÍA / SUBIR MÚLTIPLES FOTOS */}
+                        <div className="md:col-span-2 space-y-2">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
+                                Fotos del Producto (puedes seleccionar varias fotos)
                             </label>
-                            <div className="flex items-center gap-3">
-                                <label className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-xl p-3 text-sm bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold transition-colors">
-                                    <Upload size={18} className="text-[#B76E79]" />
-                                    <span>{imageUrl ? "Cambiar imagen seleccionada" : "Elegir archivo de imagen"}</span>
-                                    <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                                </label>
-                            </div>
-                            {imageUrl && (
-                                <div className="mt-2 flex items-center gap-3">
-                                    <img src={imageUrl} alt="Vista previa" className="w-14 h-14 object-cover rounded-lg border border-gray-200 shadow-sm" />
-                                    <span className="text-xs text-emerald-600 font-bold">¡Imagen cargada correctamente!</span>
+
+                            <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold transition-colors text-center">
+                                <Upload size={24} className="text-[#B76E79]" />
+                                <span className="text-sm font-bold">Haz clic aquí para seleccionar fotos desde tu dispositivo</span>
+                                <span className="text-xs text-gray-500">Puedes seleccionar 2, 3 o más imágenes juntas</span>
+                                <input type="file" accept="image/*" multiple onChange={handleImagesChange} className="hidden" />
+                            </label>
+
+                            {images.length > 0 && (
+                                <div className="pt-2">
+                                    <p className="text-xs font-bold text-[#B76E79] mb-2">Fotos cargadas ({images.length}):</p>
+                                    <div className="flex flex-wrap gap-3">
+                                        {images.map((img, idx) => (
+                                            <div key={idx} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-[#CFA18D] shadow-sm bg-black/5">
+                                                <img src={img} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeImage(idx)}
+                                                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-90 hover:opacity-100 transition-opacity cursor-pointer shadow-md"
+                                                    title="Eliminar foto"
+                                                >
+                                                    <X size={12} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -431,53 +492,57 @@ export default function AdminPage() {
                         <p className="text-sm text-gray-500 py-4">Aún no hay productos registrados.</p>
                     ) : (
                         <div className="divide-y divide-gray-100">
-                            {products.map((p) => (
-                                <div key={p.id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            {products.map((p) => {
+                                const prodImgs = p.image_urls && p.image_urls.length > 0 ? p.image_urls : p.image_url ? [p.image_url] : [];
 
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-16 h-16 rounded-xl bg-[#FAF0EE] border border-[#F5D9D6] overflow-hidden flex items-center justify-center shrink-0">
-                                            {p.image_url ? (
-                                                <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <ImageIcon size={24} className="text-[#B76E79]" />
-                                            )}
-                                        </div>
+                                return (
+                                    <div key={p.id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
 
-                                        <div>
-                                            <h4 className="font-bold text-[#3B3B3B] text-base flex items-center gap-2">
-                                                {p.name}
-                                                {p.promo && (
-                                                    <span className="bg-[#B76E79] text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">
-                                                        Promo
-                                                    </span>
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-16 h-16 rounded-xl bg-[#FAF0EE] border border-[#F5D9D6] overflow-hidden flex items-center justify-center shrink-0">
+                                                {prodImgs[0] ? (
+                                                    <img src={prodImgs[0]} alt={p.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <ImageIcon size={24} className="text-[#B76E79]" />
                                                 )}
-                                            </h4>
-                                            <p className="text-xs text-gray-500">
-                                                {p.category} {p.subcategory ? `· ${p.subcategory}` : ""}
-                                            </p>
-                                            <p className="text-sm font-black text-[#B76E79] mt-0.5">
-                                                ${new Intl.NumberFormat("es-CO").format(p.price)} COP
-                                            </p>
+                                            </div>
+
+                                            <div>
+                                                <h4 className="font-bold text-[#3B3B3B] text-base flex items-center gap-2">
+                                                    {p.name}
+                                                    {p.promo && (
+                                                        <span className="bg-[#B76E79] text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">
+                                                            Promo
+                                                        </span>
+                                                    )}
+                                                </h4>
+                                                <p className="text-xs text-gray-500">
+                                                    {p.category} {p.subcategory ? `· ${p.subcategory}` : ""} {prodImgs.length > 1 ? `(${prodImgs.length} fotos)` : ""}
+                                                </p>
+                                                <p className="text-sm font-black text-[#B76E79] mt-0.5">
+                                                    ${new Intl.NumberFormat("es-CO").format(p.price)} COP
+                                                </p>
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    <div className="flex items-center gap-2 self-end sm:self-center">
-                                        <button
-                                            onClick={() => handleEdit(p)}
-                                            className="py-2 px-4 rounded-xl bg-[#FAF0EE] hover:bg-[#F5D9D6] text-[#B76E79] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-[#CFA18D]/30"
-                                        >
-                                            <Edit3 size={15} /> Editar
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(p.id)}
-                                            className="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-rose-200"
-                                        >
-                                            <Trash2 size={15} /> Eliminar
-                                        </button>
-                                    </div>
+                                        <div className="flex items-center gap-2 self-end sm:self-center">
+                                            <button
+                                                onClick={() => handleEdit(p)}
+                                                className="py-2 px-4 rounded-xl bg-[#FAF0EE] hover:bg-[#F5D9D6] text-[#B76E79] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-[#CFA18D]/30"
+                                            >
+                                                <Edit3 size={15} /> Editar
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(p.id)}
+                                                className="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-rose-200"
+                                            >
+                                                <Trash2 size={15} /> Eliminar
+                                            </button>
+                                        </div>
 
-                                </div>
-                            ))}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
