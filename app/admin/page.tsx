@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2, Edit3, Check, X, ArrowLeft, Image as ImageIcon, Sparkles, Upload, Lock, KeyRound } from "lucide-react";
 
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "1000440962";
+const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "stefmol2026";
 
 type Product = {
     id: string;
@@ -115,7 +115,7 @@ export default function AdminPage() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    // COMPRESIÓN AGRESIVA PARA EVITAR EXCEDER LÍMITES DE VERCEL
+    // COMPRESIÓN DE IMÁGENES
     function compressImage(file: File): Promise<string> {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -145,7 +145,6 @@ export default function AdminPage() {
                     const ctx = canvas.getContext("2d");
                     ctx?.drawImage(img, 0, 0, width, height);
 
-                    // Calidad ajustada a 0.55 JPEG
                     const dataUrl = canvas.toDataURL("image/jpeg", 0.55);
                     resolve(dataUrl);
                 };
@@ -167,6 +166,20 @@ export default function AdminPage() {
         setImages((prev) => prev.filter((_, i) => i !== index));
     }
 
+    // Cambio de Categoría dinámico con reseteo de subcategoría
+    function handleCategoryChange(newCategory: string) {
+        setCategory(newCategory);
+        const catData = categoryStructure.find((c) => c.name === newCategory);
+        if (catData && catData.subcategories.length > 0) {
+            // Si la subcategoría previa no pertenece a la nueva categoría, la reiniciamos
+            if (!catData.subcategories.includes(subcategory)) {
+                setSubcategory("");
+            }
+        } else {
+            setSubcategory("");
+        }
+    }
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
 
@@ -181,7 +194,7 @@ export default function AdminPage() {
             name,
             description,
             category,
-            subcategory,
+            subcategory: subcategory || null,
             price: Number(price),
             image_url: images[0] || "",
             image_urls: images,
@@ -360,18 +373,15 @@ export default function AdminPage() {
                             />
                         </div>
 
-                        {/* CATEGORÍA */}
+                        {/* CATEGORÍA PRINCIPAL */}
                         <div>
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
                                 Categoría Principal
                             </label>
                             <select
                                 value={category}
-                                onChange={(e) => {
-                                    setCategory(e.target.value);
-                                    setSubcategory("");
-                                }}
-                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
+                                onChange={(e) => handleCategoryChange(e.target.value)}
+                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30 font-semibold"
                             >
                                 {categoryStructure.map((c) => (
                                     <option key={c.name} value={c.name}>
@@ -381,7 +391,7 @@ export default function AdminPage() {
                             </select>
                         </div>
 
-                        {/* SUBCATEGORÍA */}
+                        {/* SUBCATEGORÍA DINÁMICA */}
                         {currentSubcategories.length > 0 && (
                             <div>
                                 <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
@@ -402,7 +412,7 @@ export default function AdminPage() {
                             </div>
                         )}
 
-                        {/* GALERÍA / SUBIR MÚLTIPLES FOTOS */}
+                        {/* GALERÍA / SUBIR FOTOS */}
                         <div className="md:col-span-2 space-y-2">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
                                 Fotos del Producto (puedes seleccionar varias fotos)
@@ -474,7 +484,7 @@ export default function AdminPage() {
                             className={`w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-base uppercase tracking-wider shadow-xl hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border border-white/20 ${isSaving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                         >
                             {isSaving ? (
-                                <span>Guardando y optimizando fotos...</span>
+                                <span>Guardando cambios del producto...</span>
                             ) : editingId ? (
                                 <>
                                     <Check size={20} /> Guardar Cambios del Producto
