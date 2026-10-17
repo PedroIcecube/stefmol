@@ -39,6 +39,7 @@ export default function AdminPage() {
     const [category, setCategory] = useState("Juguetes");
     const [subcategory, setSubcategory] = useState("");
     const [price, setPrice] = useState("");
+    const [imageUrlInput, setImageUrlInput] = useState("");
     const [images, setImages] = useState<string[]>([]);
     const [promo, setPromo] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -90,6 +91,7 @@ export default function AdminPage() {
         setCategory("Juguetes");
         setSubcategory("");
         setPrice("");
+        setImageUrlInput("");
         setImages([]);
         setPromo(false);
         setEditingId(null);
@@ -110,33 +112,33 @@ export default function AdminPage() {
             existingImages.push(p.image_url);
         }
         setImages(existingImages);
+        setImageUrlInput(p.image_url || "");
 
         setPromo(Boolean(p.promo));
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    // COMPRESIÓN ULTRALIGERA PARA SUPERAR EL LÍMITE DE VERCEL (MAX 400px / 0.4 CALIDAD)
-    function compressImage(file: File): Promise<string> {
+    // Redimensión rápida para garantizar que NINGUNA foto bloquee el servidor
+    function processFile(file: File): Promise<string> {
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement("canvas");
-                    const MAX_WIDTH = 400;
-                    const MAX_HEIGHT = 400;
+                    const MAX_SIZE = 600;
                     let width = img.width;
                     let height = img.height;
 
                     if (width > height) {
-                        if (width > MAX_WIDTH) {
-                            height *= MAX_WIDTH / width;
-                            width = MAX_WIDTH;
+                        if (width > MAX_SIZE) {
+                            height *= MAX_SIZE / width;
+                            width = MAX_SIZE;
                         }
                     } else {
-                        if (height > MAX_HEIGHT) {
-                            width *= MAX_HEIGHT / height;
-                            height = MAX_HEIGHT;
+                        if (height > MAX_SIZE) {
+                            width *= MAX_SIZE / height;
+                            height = MAX_SIZE;
                         }
                     }
 
@@ -144,10 +146,7 @@ export default function AdminPage() {
                     canvas.height = height;
                     const ctx = canvas.getContext("2d");
                     ctx?.drawImage(img, 0, 0, width, height);
-
-                    // Calidad super comprimida
-                    const dataUrl = canvas.toDataURL("image/jpeg", 0.4);
-                    resolve(dataUrl);
+                    resolve(canvas.toDataURL("image/jpeg", 0.6));
                 };
                 img.src = e.target?.result as string;
             };
@@ -159,8 +158,15 @@ export default function AdminPage() {
         const files = Array.from(e.target.files || []);
         if (!files.length) return;
 
-        const compressed = await Promise.all(files.map((file) => compressImage(file)));
-        setImages((prev) => [...prev, ...compressed]);
+        const processed = await Promise.all(files.map((file) => processFile(file)));
+        setImages((prev) => [...prev, ...processed]);
+    }
+
+    function addUrlImage() {
+        if (imageUrlInput.trim()) {
+            setImages((prev) => [...prev, imageUrlInput.trim()]);
+            setImageUrlInput("");
+        }
     }
 
     function removeImage(index: number) {
@@ -186,8 +192,8 @@ export default function AdminPage() {
         setIsSaving(true);
 
         const payload = {
-            name,
-            description,
+            name: name.trim(),
+            description: description.trim(),
             category,
             subcategory: subcategory || null,
             price: Number(price),
@@ -211,10 +217,10 @@ export default function AdminPage() {
                 loadProducts();
                 alert("¡Producto guardado exitosamente!");
             } else {
-                alert("Ocurrió un error al guardar en el servidor. Intenta subir menos fotos o fotos más pequeñas.");
+                alert("No se pudo guardar el producto. Intenta con menos imágenes.");
             }
         } catch {
-            alert("Error de conexión al guardar el producto.");
+            alert("Error de conexión al guardar.");
         } finally {
             setIsSaving(false);
         }
@@ -227,6 +233,7 @@ export default function AdminPage() {
             const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
             if (res.ok) {
                 loadProducts();
+                alert("Producto eliminado correctamente.");
             } else {
                 alert("No se pudo eliminar el producto.");
             }
@@ -308,7 +315,7 @@ export default function AdminPage() {
                             <ArrowLeft size={16} /> Volver a la Tienda
                         </a>
                         <h1 className="brand-script text-4xl md:text-5xl rose-gold-text">Administración Stefmol</h1>
-                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión Protegida de Catálogo</p>
+                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión de Catálogo</p>
                     </div>
                     <button
                         onClick={handleLogout}
@@ -318,7 +325,7 @@ export default function AdminPage() {
                     </button>
                 </div>
 
-                {/* FORMULARIO AGREGAR / EDITAR */}
+                {/* FORMULARIO */}
                 <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-3xl shadow-lg border border-[#F5D9D6] space-y-6">
                     <div className="flex items-center justify-between border-b border-[#F5D9D6] pb-4">
                         <h2 className="text-xl font-bold text-[#3B3B3B] flex items-center gap-2">
@@ -341,7 +348,7 @@ export default function AdminPage() {
                         {/* NOMBRE */}
                         <div className="md:col-span-2">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
-                                Nombre del Producto (puedes incluir emojis ✨🔥)
+                                Nombre del Producto (puedes usar emojis ✨🔥)
                             </label>
                             <input
                                 type="text"
@@ -408,20 +415,41 @@ export default function AdminPage() {
                         )}
 
                         {/* FOTOS DEL PRODUCTO */}
-                        <div className="md:col-span-2 space-y-2">
+                        <div className="md:col-span-2 space-y-3">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
                                 Fotos del Producto
                             </label>
 
-                            <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold transition-colors text-center">
-                                <Upload size={24} className="text-[#B76E79]" />
-                                <span className="text-sm font-bold">Haz clic aquí para seleccionar fotos</span>
-                                <input type="file" accept="image/*" multiple onChange={handleImagesChange} className="hidden" />
-                            </label>
+                            <div className="grid md:grid-cols-2 gap-3">
+                                {/* OPCIÓN 1: SUBIR DESDE DISPOSITIVO */}
+                                <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-4 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold transition-colors text-center">
+                                    <Upload size={22} className="text-[#B76E79]" />
+                                    <span className="text-xs font-bold">Subir desde celular / PC</span>
+                                    <input type="file" accept="image/*" multiple onChange={handleImagesChange} className="hidden" />
+                                </label>
+
+                                {/* OPCIÓN 2: ENLACE / URL EXTERNA */}
+                                <div className="flex gap-2 items-center">
+                                    <input
+                                        type="url"
+                                        value={imageUrlInput}
+                                        onChange={(e) => setImageUrlInput(e.target.value)}
+                                        placeholder="O pega link/URL de foto..."
+                                        className="flex-1 border border-gray-300 rounded-xl p-3 text-xs focus:outline-[#B76E79] bg-[#FAF0EE]/30"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={addUrlImage}
+                                        className="py-3 px-4 bg-[#CFA18D] hover:bg-[#B76E79] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                                    >
+                                        Agregar
+                                    </button>
+                                </div>
+                            </div>
 
                             {images.length > 0 && (
                                 <div className="pt-2">
-                                    <p className="text-xs font-bold text-[#B76E79] mb-2">Fotos cargadas ({images.length}):</p>
+                                    <p className="text-xs font-bold text-[#B76E79] mb-2">Fotos asociadas ({images.length}):</p>
                                     <div className="flex flex-wrap gap-3">
                                         {images.map((img, idx) => (
                                             <div key={idx} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-[#CFA18D] shadow-sm bg-black/5">
@@ -478,7 +506,7 @@ export default function AdminPage() {
                             className={`w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-base uppercase tracking-wider shadow-xl hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border border-white/20 ${isSaving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                         >
                             {isSaving ? (
-                                <span>Guardando cambios...</span>
+                                <span>Procesando y guardando...</span>
                             ) : editingId ? (
                                 <>
                                     <Check size={20} /> Guardar Cambios del Producto
@@ -499,7 +527,7 @@ export default function AdminPage() {
                     </h3>
 
                     {loading ? (
-                        <p className="text-sm text-gray-500 py-4">Cargando lista de productos…</p>
+                        <p className="text-sm text-gray-500 py-4">Cargando catálogo...</p>
                     ) : !products.length ? (
                         <p className="text-sm text-gray-500 py-4">Aún no hay productos registrados.</p>
                     ) : (
