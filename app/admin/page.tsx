@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Plus, Trash2, Edit3, Check, X, ArrowLeft, Image as ImageIcon, Sparkles, Upload, Lock, KeyRound } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+
+// Inicializar cliente de Supabase para subidas directas
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "stefmol2026";
 
@@ -39,8 +45,8 @@ export default function AdminPage() {
     const [category, setCategory] = useState("Juguetes");
     const [subcategory, setSubcategory] = useState("");
     const [price, setPrice] = useState("");
-    const [imageUrlInput, setImageUrlInput] = useState("");
     const [images, setImages] = useState<string[]>([]);
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [promo, setPromo] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -91,8 +97,8 @@ export default function AdminPage() {
         setCategory("Juguetes");
         setSubcategory("");
         setPrice("");
-        setImageUrlInput("");
         setImages([]);
+        setSelectedFiles([]);
         setPromo(false);
         setEditingId(null);
     }
@@ -112,65 +118,64 @@ export default function AdminPage() {
             existingImages.push(p.image_url);
         }
         setImages(existingImages);
-        setImageUrlInput(p.image_url || "");
+        setSelectedFiles([]);
 
         setPromo(Boolean(p.promo));
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    // Redimensión rápida para garantizar que NINGUNA foto bloquee el servidor
-    function processFile(file: File): Promise<string> {
-        return new Promise((resolve) => {
+    // Manejar archivos seleccionados desde Celular/PC
+    function handleFileSelection(e: React.ChangeEvent<HTMLInputElement>) {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+
+        setSelectedFiles((prev) => [...prev, ...files]);
+
+        // Vista previa local inmediata
+        files.forEach((file) => {
             const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement("canvas");
-                    const MAX_SIZE = 600;
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > height) {
-                        if (width > MAX_SIZE) {
-                            height *= MAX_SIZE / width;
-                            width = MAX_SIZE;
-                        }
-                    } else {
-                        if (height > MAX_SIZE) {
-                            width *= MAX_SIZE / height;
-                            height = MAX_SIZE;
-                        }
-                    }
-
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext("2d");
-                    ctx?.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL("image/jpeg", 0.6));
-                };
-                img.src = e.target?.result as string;
+            reader.onload = (ev) => {
+                if (ev.target?.result) {
+                    setImages((prev) => [...prev, ev.target!.result as string]);
+                }
             };
             reader.readAsDataURL(file);
         });
     }
 
-    async function handleImagesChange(e: React.ChangeEvent<HTMLInputElement>) {
-        const files = Array.from(e.target.files || []);
-        if (!files.length) return;
+    // Función para subir archivos a Supabase Storage
+    async function uploadFilesToSupabase(files: File[]): Promise<string[]> {
+        const uploadedUrls: string[] = [];
 
-        const processed = await Promise.all(files.map((file) => processFile(file)));
-        setImages((prev) => [...prev, ...processed]);
-    }
+        for (const file of files) {
+            const fileExt = file.name.split(".").pop();
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+            const filePath = `products/${fileName}`;
 
-    function addUrlImage() {
-        if (imageUrlInput.trim()) {
-            setImages((prev) => [...prev, imageUrlInput.trim()]);
-            setImageUrlInput("");
+            const { data, error } = await supabase.storage
+                .from("products")
+                .upload(filePath, file, { cacheControl: "3600", upsert: true });
+
+            if (error) {
+                console.error("Error al subir a Supabase Storage:", error.message);
+                continue;
+            }
+
+            const { data: publicUrlData } = supabase.storage
+                .from("products")
+                .getPublicUrl(filePath);
+
+            if (publicUrlData?.publicUrl) {
+                uploadedUrls.push(publicUrlData.publicUrl);
+            }
         }
+
+        return uploadedUrls;
     }
 
     function removeImage(index: number) {
         setImages((prev) => prev.filter((_, i) => i !== index));
+        setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
     }
 
     function handleCategoryChange(newCategory: string) {
@@ -191,18 +196,27 @@ export default function AdminPage() {
 
         setIsSaving(true);
 
-        const payload = {
-            name: name.trim(),
-            description: description.trim(),
-            category,
-            subcategory: subcategory || null,
-            price: Number(price),
-            image_url: images[0] || "",
-            image_urls: images,
-            promo,
-        };
-
         try {
+            // 1. Mantener las imágenes tipo URL que ya estaban previamente
+            let finalUrls = images.filter((img) => img.startsWith("http"));
+
+            // 2. Subir imágenes nuevas a Supabase Storage si hay archivos seleccionados
+            if (selectedFiles.length > 0) {
+                const newUploadedUrls = await uploadFilesToSupabase(selectedFiles);
+                finalUrls = [...finalUrls, ...newUploadedUrls];
+            }
+
+            const payload = {
+                name: name.trim(),
+                description: description.trim(),
+                category,
+                subcategory: subcategory || null,
+                price: Number(price),
+                image_url: finalUrls[0] || "",
+                image_urls: finalUrls,
+                promo,
+            };
+
             const url = editingId ? `/api/products/${editingId}` : "/api/products";
             const method = editingId ? "PUT" : "POST";
 
@@ -217,7 +231,7 @@ export default function AdminPage() {
                 loadProducts();
                 alert("¡Producto guardado exitosamente!");
             } else {
-                alert("No se pudo guardar el producto. Intenta con menos imágenes.");
+                alert("Ocurrió un error al guardar los datos del producto.");
             }
         } catch {
             alert("Error de conexión al guardar.");
@@ -315,7 +329,7 @@ export default function AdminPage() {
                             <ArrowLeft size={16} /> Volver a la Tienda
                         </a>
                         <h1 className="brand-script text-4xl md:text-5xl rose-gold-text">Administración Stefmol</h1>
-                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión de Catálogo</p>
+                        <p className="text-xs text-[#F5D9D6] uppercase tracking-wider font-semibold mt-1">Gestión de Catálogo con Supabase Storage</p>
                     </div>
                     <button
                         onClick={handleLogout}
@@ -420,32 +434,12 @@ export default function AdminPage() {
                                 Fotos del Producto
                             </label>
 
-                            <div className="grid md:grid-cols-2 gap-3">
-                                {/* OPCIÓN 1: SUBIR DESDE DISPOSITIVO */}
-                                <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-4 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold transition-colors text-center">
-                                    <Upload size={22} className="text-[#B76E79]" />
-                                    <span className="text-xs font-bold">Subir desde celular / PC</span>
-                                    <input type="file" accept="image/*" multiple onChange={handleImagesChange} className="hidden" />
-                                </label>
-
-                                {/* OPCIÓN 2: ENLACE / URL EXTERNA */}
-                                <div className="flex gap-2 items-center">
-                                    <input
-                                        type="url"
-                                        value={imageUrlInput}
-                                        onChange={(e) => setImageUrlInput(e.target.value)}
-                                        placeholder="O pega link/URL de foto..."
-                                        className="flex-1 border border-gray-300 rounded-xl p-3 text-xs focus:outline-[#B76E79] bg-[#FAF0EE]/30"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={addUrlImage}
-                                        className="py-3 px-4 bg-[#CFA18D] hover:bg-[#B76E79] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
-                                    >
-                                        Agregar
-                                    </button>
-                                </div>
-                            </div>
+                            <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold transition-colors text-center">
+                                <Upload size={24} className="text-[#B76E79]" />
+                                <span className="text-sm font-bold">Seleccionar fotos desde tu celular o PC</span>
+                                <span className="text-xs text-gray-500">Puedes seleccionar varias imágenes a la vez</span>
+                                <input type="file" accept="image/*" multiple onChange={handleFileSelection} className="hidden" />
+                            </label>
 
                             {images.length > 0 && (
                                 <div className="pt-2">
@@ -506,7 +500,7 @@ export default function AdminPage() {
                             className={`w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-base uppercase tracking-wider shadow-xl hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border border-white/20 ${isSaving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                         >
                             {isSaving ? (
-                                <span>Procesando y guardando...</span>
+                                <span>Subiendo imágenes a Supabase...</span>
                             ) : editingId ? (
                                 <>
                                     <Check size={20} /> Guardar Cambios del Producto
