@@ -6,12 +6,15 @@ const db = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
     try {
-        const id = params.id;
+        const resolvedParams = await params;
+        const id = resolvedParams.id;
         const body = await request.json();
 
-        // Asegurar que categories sea un array
         const categories = Array.isArray(body.categories) && body.categories.length > 0
             ? body.categories
             : [body.category || "Juguetes"];
@@ -25,7 +28,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
                 name: String(body.name ?? "").trim(),
                 description: String(body.description ?? ""),
                 category: categories[0] || "Juguetes",
-                categories: categories, // <--- Actualizar la lista completa aquí
+                categories: categories,
                 subcategory: body.subcategory ? String(body.subcategory) : null,
                 price: Number(body.price),
                 original_price,
@@ -49,9 +52,13 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
     try {
-        const id = params.id;
+        const resolvedParams = await params;
+        const id = resolvedParams.id;
         const { error } = await db.from("products").delete().eq("id", id);
         if (error) throw error;
         return NextResponse.json({ success: true });
