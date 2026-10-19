@@ -9,7 +9,7 @@ type Product = {
     id: string;
     name: string;
     description: string | null;
-    category?: string | null;
+    category: string | null;
     categories?: string[];
     subcategory?: string | null;
     price: number;
@@ -19,11 +19,20 @@ type Product = {
     promo?: boolean;
 };
 
-const availableCategories = [
-    "Promociones del Mes",
-    "Juguetes",
-    "Placer y Sensaciones",
-    "Lencería"
+const categoryStructure = [
+    { name: "Promociones del Mes", subcategories: [] },
+    {
+        name: "Juguetes",
+        subcategories: ["Anillos vibradores", "Dildos", "Juegos eróticos", "Masturbadores", "Plugs anales", "BDSM", "Succionadores", "Vibradores"]
+    },
+    {
+        name: "Placer y Sensaciones",
+        subcategories: ["Anal", "Cremas fusión", "Estrechante", "Feromonas", "Garganta profunda", "Lubricantes", "Multiorgasmo", "Potenciador", "Comestibles", "Retardantes"]
+    },
+    {
+        name: "Lencería",
+        subcategories: ["Talla XS", "Talla S", "Talla M", "Talla L", "Talla XL", "Talla XXL", "Mallas", "Cuero"]
+    }
 ];
 
 export default function AdminPage() {
@@ -39,10 +48,14 @@ export default function AdminPage() {
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [selectedCategories, setSelectedCategories] = useState<string[]>(["Juguetes"]);
-    const [price, setPrice] = useState("");
-    const [originalPrice, setOriginalPrice] = useState("");
-    const [images, setImages] = useState<string[]>([]);
+    const [subcategory, setSubcategory] = useState("");
+
+    // Precios y Promoción
     const [promo, setPromo] = useState(false);
+    const [price, setPrice] = useState(""); // Precio de venta (o en promoción si es promo)
+    const [originalPrice, setOriginalPrice] = useState(""); // Precio anterior / normal tachado
+
+    const [images, setImages] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
@@ -90,6 +103,7 @@ export default function AdminPage() {
         setName("");
         setDescription("");
         setSelectedCategories(["Juguetes"]);
+        setSubcategory("");
         setPrice("");
         setOriginalPrice("");
         setImages([]);
@@ -102,7 +116,6 @@ export default function AdminPage() {
         setName(p.name || "");
         setDescription(p.description || "");
 
-        // Soportar categorías múltiples o convertir la antigua categoría única
         let cats: string[] = [];
         if (p.categories && Array.isArray(p.categories) && p.categories.length > 0) {
             cats = p.categories;
@@ -112,6 +125,10 @@ export default function AdminPage() {
             cats = ["Juguetes"];
         }
         setSelectedCategories(cats);
+        setSubcategory(p.subcategory || "");
+
+        const isPromoItem = Boolean(p.promo) || cats.includes("Promociones del Mes");
+        setPromo(isPromoItem);
 
         setPrice(p.price ? String(p.price) : "");
         setOriginalPrice(p.original_price ? String(p.original_price) : "");
@@ -124,11 +141,10 @@ export default function AdminPage() {
         }
         setImages(existingImages);
 
-        setPromo(Boolean(p.promo));
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    // Compresión en Canvas para evitar límite de peso en Vercel
+    // Compresión en Canvas
     function compressImage(file: File): Promise<string> {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -178,17 +194,21 @@ export default function AdminPage() {
         setImages((prev) => prev.filter((_, i) => i !== index));
     }
 
-    function toggleCategorySelection(cat: string) {
-        if (selectedCategories.includes(cat)) {
+    function toggleCategory(catName: string) {
+        if (selectedCategories.includes(catName)) {
             if (selectedCategories.length === 1) {
-                alert("El producto debe pertenecer al menos a una categoría.");
+                alert("El producto debe pertenecer al menos a una categoría principal.");
                 return;
             }
-            setSelectedCategories(selectedCategories.filter((c) => c !== cat));
+            setSelectedCategories(selectedCategories.filter((c) => c !== catName));
         } else {
-            setSelectedCategories([...selectedCategories, cat]);
+            setSelectedCategories([...selectedCategories, catName]);
         }
     }
+
+    const availableSubcategories = categoryStructure
+        .filter((c) => selectedCategories.includes(c.name))
+        .flatMap((c) => c.subcategories);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -200,13 +220,23 @@ export default function AdminPage() {
 
         setIsSaving(true);
 
+        // Si es promoción, asegurarnos de que la categoría "Promociones del Mes" esté incluida
+        let finalCategories = [...selectedCategories];
+        if (promo && !finalCategories.includes("Promociones del Mes")) {
+            finalCategories.push("Promociones del Mes");
+        } else if (!promo) {
+            finalCategories = finalCategories.filter(c => c !== "Promociones del Mes");
+        }
+
         const payload = {
             name: name.trim(),
             description: description.trim(),
-            categories: selectedCategories,
-            category: selectedCategories[0] || "Juguetes", // Compatibilidad hacia atrás
+            categories: finalCategories,
+            category: finalCategories[0] || "Juguetes",
+            subcategory: subcategory || null,
             price: Number(price),
-            original_price: originalPrice ? Number(originalPrice) : null,
+            // Si hay promo y pusieron precio anterior, lo guardamos. Si no hay promo, original_price es null.
+            original_price: promo && originalPrice ? Number(originalPrice) : null,
             image_url: images[0] || "",
             image_urls: images,
             promo,
@@ -225,7 +255,7 @@ export default function AdminPage() {
             if (res.ok) {
                 resetForm();
                 loadProducts();
-                alert("¡Producto guardado exitosamente!");
+                alert("¡Producto guardado y actualizado exitosamente!");
             } else {
                 alert("Ocurrió un error al guardar el producto.");
             }
@@ -262,16 +292,12 @@ export default function AdminPage() {
 
                     <div>
                         <h1 className="brand-script text-4xl rose-gold-text">Stefmol Admin</h1>
-                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
-                            Acceso Restringido
-                        </p>
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Acceso Restringido</p>
                     </div>
 
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div className="text-left">
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-2">
-                                Ingresa tu contraseña:
-                            </label>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-2">Ingresa tu contraseña:</label>
                             <div className="relative">
                                 <input
                                     type="password"
@@ -286,25 +312,18 @@ export default function AdminPage() {
                                 />
                                 <KeyRound size={18} className="absolute left-3.5 top-3.5 text-gray-400" />
                             </div>
-                            {passwordError && (
-                                <p className="text-xs text-red-600 font-bold mt-2">
-                                    Contraseña incorrecta. Inténtalo de nuevo.
-                                </p>
-                            )}
+                            {passwordError && <p className="text-xs text-red-600 font-bold mt-2">Contraseña incorrecta.</p>}
                         </div>
 
                         <button
                             type="submit"
-                            className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-sm uppercase tracking-wider shadow-lg hover:opacity-95 active:scale-[0.98] transition-all cursor-pointer"
+                            className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-sm uppercase tracking-wider shadow-lg hover:opacity-95 cursor-pointer"
                         >
                             Ingresar al Panel
                         </button>
                     </form>
 
-                    <a
-                        href="/"
-                        className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#B76E79] font-bold transition-colors"
-                    >
+                    <a href="/" className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#B76E79] font-bold transition-colors">
                         <ArrowLeft size={14} /> Volver a la Tienda
                     </a>
                 </div>
@@ -355,66 +374,100 @@ export default function AdminPage() {
 
                         {/* NOMBRE */}
                         <div className="md:col-span-2">
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
-                                Nombre del Producto (puedes usar emojis ✨🔥)
-                            </label>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">Nombre del Producto</label>
                             <input
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                placeholder="Ej: Vibrador Varita Mágica 💖 10 Modos"
+                                placeholder="Ej: Vibrador Varita Mágica 💖"
                                 className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
                                 required
                             />
                         </div>
 
-                        {/* PRECIOS */}
-                        <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
-                                Precio Actual (COP)
-                            </label>
+                        {/* CHECKBOX PROMOCIÓN (Arriba para activar los campos de precio condicionales) */}
+                        <div className="md:col-span-2 flex items-center gap-3 bg-[#F5D9D6]/30 p-4 rounded-2xl border border-[#CFA18D]/30">
                             <input
-                                type="number"
-                                value={price}
-                                onChange={(e) => setPrice(e.target.value)}
-                                placeholder="Ej: 89900"
-                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
-                                required
+                                type="checkbox"
+                                id="promoCheck"
+                                checked={promo}
+                                onChange={(e) => setPromo(e.target.checked)}
+                                className="w-5 h-5 accent-[#B76E79] cursor-pointer"
                             />
+                            <label htmlFor="promoCheck" className="text-sm font-bold text-[#3B3B3B] cursor-pointer select-none">
+                                Marcar como "Promoción del Mes" (Activa precios de oferta Antes / Ahora)
+                            </label>
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
-                                Precio Anterior / Antes (Opcional, para tachar en promo)
-                            </label>
-                            <input
-                                type="number"
-                                value={originalPrice}
-                                onChange={(e) => setOriginalPrice(e.target.value)}
-                                placeholder="Ej: 120000"
-                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
-                            />
-                        </div>
+                        {/* SECCIÓN DE PRECIOS DINÁMICA */}
+                        {promo ? (
+                            <>
+                                {/* PRECIO ANTERIOR (TACHADO) */}
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
+                                        Precio Normal / Anterior (Tachado)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={originalPrice}
+                                        onChange={(e) => setOriginalPrice(e.target.value)}
+                                        placeholder="Ej: 120000"
+                                        className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-gray-50 font-semibold"
+                                        required={promo}
+                                    />
+                                </div>
 
-                        {/* SELECCIÓN MÚLTIPLE DE CATEGORÍAS */}
+                                {/* PRECIO EN PROMOCIÓN (OFERTA) */}
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-[#B76E79] mb-1">
+                                        Precio en Promoción (Oferta actual)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={price}
+                                        onChange={(e) => setPrice(e.target.value)}
+                                        placeholder="Ej: 89900"
+                                        className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/50 font-bold text-[#B76E79]"
+                                        required
+                                    />
+                                </div>
+                            </>
+                        ) : (
+                            /* PRECIO NORMAL ÚNICO (CUANDO NO ES PROMO) */
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
+                                    Precio del Producto (COP)
+                                </label>
+                                <input
+                                    type="number"
+                                    value={price}
+                                    onChange={(e) => setPrice(e.target.value)}
+                                    placeholder="Ej: 89900"
+                                    className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
+                                    required
+                                />
+                            </div>
+                        )}
+
+                        {/* CATEGORÍAS MÚLTIPLES */}
                         <div className="md:col-span-2 space-y-2">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
-                                Categorías (Puedes marcar una o varias)
+                                Categorías Principales (Puedes marcar una o varias)
                             </label>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                {availableCategories.map((cat) => {
-                                    const isChecked = selectedCategories.includes(cat);
+                                {categoryStructure.map((cat) => {
+                                    const isChecked = selectedCategories.includes(cat.name);
                                     return (
                                         <button
                                             type="button"
-                                            key={cat}
-                                            onClick={() => toggleCategorySelection(cat)}
+                                            key={cat.name}
+                                            onClick={() => toggleCategory(cat.name)}
                                             className={`p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${isChecked
                                                     ? "bg-[#B76E79] text-white border-[#B76E79] shadow-md"
                                                     : "bg-[#FAF0EE]/40 text-[#3B3B3B] border-gray-200 hover:border-[#CFA18D]"
                                                 }`}
                                         >
-                                            <span>{cat}</span>
+                                            <span>{cat.name}</span>
                                             {isChecked && <Check size={14} />}
                                         </button>
                                     );
@@ -422,23 +475,32 @@ export default function AdminPage() {
                             </div>
                         </div>
 
-                        {/* FOTOS MULTIPLES */}
-                        <div className="md:col-span-2 space-y-3">
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
-                                Fotos del Producto
+                        {/* SUBCATEGORÍA */}
+                        <div className="md:col-span-2">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
+                                Subcategoría Específica
                             </label>
+                            <select
+                                value={subcategory}
+                                onChange={(e) => setSubcategory(e.target.value)}
+                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
+                            >
+                                <option value="">-- Sin subcategoría específica --</option>
+                                {availableSubcategories.map((sub, idx) => (
+                                    <option key={idx} value={sub}>
+                                        {sub}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
-                            <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold transition-colors text-center">
+                        {/* FOTOS */}
+                        <div className="md:col-span-2 space-y-3">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">Fotos del Producto</label>
+                            <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold text-center">
                                 <Upload size={24} className="text-[#B76E79]" />
                                 <span className="text-sm font-bold">Seleccionar fotos desde tu dispositivo</span>
-                                <span className="text-xs text-gray-500">Puedes seleccionar varias imágenes a la vez</span>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    multiple
-                                    onChange={handleFileSelection}
-                                    className="hidden"
-                                />
+                                <input type="file" accept="image/*" multiple onChange={handleFileSelection} className="hidden" />
                             </label>
 
                             {images.length > 0 && (
@@ -451,8 +513,7 @@ export default function AdminPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => removeImage(idx)}
-                                                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-90 hover:opacity-100 transition-opacity cursor-pointer shadow-md"
-                                                    title="Eliminar foto"
+                                                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 cursor-pointer"
                                                 >
                                                     <X size={12} />
                                                 </button>
@@ -465,94 +526,53 @@ export default function AdminPage() {
 
                         {/* DESCRIPCIÓN */}
                         <div className="md:col-span-2">
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
-                                Descripción del Producto (Solo se ve al entrar al producto)
-                            </label>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">Descripción del Producto</label>
                             <textarea
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
-                                placeholder="Escribe detalles del producto, materiales, dimensiones, modos de uso..."
+                                placeholder="Detalles, materiales, dimensiones..."
                                 className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30 min-h-20"
                             />
                         </div>
 
-                        {/* CHECKBOX PROMOCIÓN */}
-                        <div className="md:col-span-2 flex items-center gap-3 bg-[#F5D9D6]/30 p-4 rounded-2xl border border-[#CFA18D]/30">
-                            <input
-                                type="checkbox"
-                                id="promoCheck"
-                                checked={promo}
-                                onChange={(e) => setPromo(e.target.checked)}
-                                className="w-5 h-5 accent-[#B76E79] cursor-pointer"
-                            />
-                            <label htmlFor="promoCheck" className="text-sm font-bold text-[#3B3B3B] cursor-pointer select-none">
-                                Marcar como "Promoción del Mes"
-                            </label>
-                        </div>
-
                     </div>
 
-                    {/* BOTÓN GUARDAR */}
-                    <div className="pt-2">
-                        <button
-                            type="submit"
-                            disabled={isSaving}
-                            className={`w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-base uppercase tracking-wider shadow-xl hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border border-white/20 ${isSaving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                        >
-                            {isSaving ? (
-                                <span>Guardando producto...</span>
-                            ) : editingId ? (
-                                <>
-                                    <Check size={20} /> Guardar Cambios del Producto
-                                </>
-                            ) : (
-                                <>
-                                    <Plus size={20} /> Guardar y Publicar Producto
-                                </>
-                            )}
-                        </button>
-                    </div>
+                    <button
+                        type="submit"
+                        disabled={isSaving}
+                        className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-base uppercase tracking-wider shadow-xl hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                        {isSaving ? "Guardando..." : editingId ? <><Check size={20} /> Guardar Cambios</> : <><Plus size={20} /> Publicar Producto</>}
+                    </button>
                 </form>
 
-                {/* LISTADO DE PRODUCTOS */}
+                {/* LISTADO */}
                 <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg border border-[#F5D9D6] space-y-4">
-                    <h3 className="text-lg font-bold text-[#3B3B3B]">
-                        Productos Publicados ({products.length})
-                    </h3>
+                    <h3 className="text-lg font-bold text-[#3B3B3B]">Productos Publicados ({products.length})</h3>
 
                     {loading ? (
-                        <p className="text-sm text-gray-500 py-4">Cargando catálogo...</p>
+                        <p className="text-sm text-gray-500 py-4">Cargando...</p>
                     ) : !products.length ? (
-                        <p className="text-sm text-gray-500 py-4">Aún no hay productos registrados.</p>
+                        <p className="text-sm text-gray-500 py-4">Sin productos.</p>
                     ) : (
                         <div className="divide-y divide-gray-100">
                             {products.map((p) => {
                                 const prodImgs = p.image_urls && p.image_urls.length > 0 ? p.image_urls : p.image_url ? [p.image_url] : [];
-                                const displayCategories = p.categories && p.categories.length > 0 ? p.categories.join(", ") : p.category || "Sin categoría";
+                                const catText = p.categories && p.categories.length > 0 ? p.categories.join(" • ") : p.category;
 
                                 return (
                                     <div key={p.id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-
                                         <div className="flex items-center gap-4">
-                                            <div className="w-16 h-16 rounded-xl bg-[#FAF0EE] border border-[#F5D9D6] overflow-hidden flex items-center justify-center shrink-0">
-                                                {prodImgs[0] ? (
-                                                    <img src={prodImgs[0]} alt={p.name} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <ImageIcon size={24} className="text-[#B76E79]" />
-                                                )}
+                                            <div className="w-16 h-16 rounded-xl bg-[#FAF0EE] border overflow-hidden flex items-center justify-center shrink-0">
+                                                {prodImgs[0] ? <img src={prodImgs[0]} alt={p.name} className="w-full h-full object-cover" /> : <ImageIcon size={24} className="text-[#B76E79]" />}
                                             </div>
-
                                             <div>
                                                 <h4 className="font-bold text-[#3B3B3B] text-base flex items-center gap-2">
                                                     {p.name}
-                                                    {p.promo && (
-                                                        <span className="bg-[#B76E79] text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">
-                                                            Promo
-                                                        </span>
-                                                    )}
+                                                    {p.promo && <span className="bg-[#B76E79] text-white text-[9px] px-2 py-0.5 rounded-full uppercase">Promo</span>}
                                                 </h4>
                                                 <p className="text-xs text-gray-500">
-                                                    {displayCategories} {prodImgs.length > 1 ? `· ${prodImgs.length} fotos` : ""}
+                                                    {catText} {p.subcategory ? `· ${p.subcategory}` : ""}
                                                 </p>
                                                 <div className="flex items-center gap-2 mt-0.5">
                                                     <span className="text-sm font-black text-[#B76E79]">
@@ -570,18 +590,17 @@ export default function AdminPage() {
                                         <div className="flex items-center gap-2 self-end sm:self-center">
                                             <button
                                                 onClick={() => handleEdit(p)}
-                                                className="py-2 px-4 rounded-xl bg-[#FAF0EE] hover:bg-[#F5D9D6] text-[#B76E79] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-[#CFA18D]/30"
+                                                className="py-2 px-4 rounded-xl bg-[#FAF0EE] hover:bg-[#F5D9D6] text-[#B76E79] text-xs font-bold flex items-center gap-1.5 cursor-pointer border border-[#CFA18D]/30"
                                             >
                                                 <Edit3 size={15} /> Editar
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(p.id)}
-                                                className="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-rose-200"
+                                                className="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer border border-rose-200"
                                             >
                                                 <Trash2 size={15} /> Eliminar
                                             </button>
                                         </div>
-
                                     </div>
                                 );
                             })}
