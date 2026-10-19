@@ -1,56 +1,61 @@
-import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-export const dynamic = "force-dynamic";
+const db = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+);
 
-export async function PUT(
-    req: Request,
-    { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: Request, { params }: { params: { id: string } }) {
     try {
-        const { id } = await params;
-        const body = await req.json();
-        const db = supabaseAdmin();
+        const id = params.id;
+        const body = await request.json();
+
+        // Asegurar que categories sea un array
+        const categories = Array.isArray(body.categories) && body.categories.length > 0
+            ? body.categories
+            : [body.category || "Juguetes"];
+
+        const promo = Boolean(body.promo);
+        const original_price = promo && body.original_price ? Number(body.original_price) : null;
 
         const { data, error } = await db
             .from("products")
             .update({
                 name: String(body.name ?? "").trim(),
                 description: String(body.description ?? ""),
-                category: String(body.category ?? "Juguetes"),
-                subcategory: String(body.subcategory ?? ""),
+                category: categories[0] || "Juguetes",
+                categories: categories, // <--- Actualizar la lista completa aquí
+                subcategory: body.subcategory ? String(body.subcategory) : null,
                 price: Number(body.price),
-                original_price: body.original_price ? Number(body.original_price) : null,
+                original_price,
                 image_url: String(body.image_url ?? ""),
                 image_urls: body.image_urls ?? [],
-                promo: Boolean(body.promo)
+                promo,
             })
             .eq("id", id)
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error("Error en Supabase (PUT):", error);
+            return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
         return NextResponse.json(data);
-    } catch (e: any) {
-        console.error("Error al actualizar:", e);
-        return NextResponse.json({ error: e.message || "Error al actualizar" }, { status: 500 });
+    } catch (err) {
+        console.error("Error del servidor (PUT):", err);
+        return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
     }
 }
 
-export async function DELETE(
-    req: Request,
-    { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
     try {
-        const { id } = await params;
-        const db = supabaseAdmin();
-
+        const id = params.id;
         const { error } = await db.from("products").delete().eq("id", id);
         if (error) throw error;
-
         return NextResponse.json({ success: true });
-    } catch (e: any) {
-        console.error("Error al eliminar:", e);
-        return NextResponse.json({ error: e.message || "Error al eliminar" }, { status: 500 });
+    } catch (err) {
+        return NextResponse.json({ error: "Error al eliminar" }, { status: 500 });
     }
 }
