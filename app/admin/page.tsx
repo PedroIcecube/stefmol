@@ -9,19 +9,21 @@ type Product = {
     id: string;
     name: string;
     description: string | null;
-    category: string | null;
+    category?: string | null;
+    categories?: string[];
     subcategory?: string | null;
     price: number;
+    original_price?: number | null;
     image_url: string | null;
     image_urls?: string[];
     promo?: boolean;
 };
 
-const categoryStructure = [
-    { name: "Promociones del Mes", subcategories: [] },
-    { name: "Juguetes", subcategories: ["Anillos vibradores", "Dildos", "Juegos eróticos", "Masturbadores", "Plugs anales", "BDSM", "Succionadores", "Vibradores"] },
-    { name: "Placer y Sensaciones", subcategories: ["Anal", "Cremas fusión", "Estrechante", "Feromonas", "Garganta profunda", "Lubricantes", "Multiorgasmo", "Potenciador", "Comestibles", "Retardantes"] },
-    { name: "Lencería", subcategories: ["Talla XS", "Talla S", "Talla M", "Talla L", "Talla XL", "Talla XXL", "Mallas", "Cuero"] }
+const availableCategories = [
+    "Promociones del Mes",
+    "Juguetes",
+    "Placer y Sensaciones",
+    "Lencería"
 ];
 
 export default function AdminPage() {
@@ -36,9 +38,9 @@ export default function AdminPage() {
     // Formulario
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
-    const [category, setCategory] = useState("Juguetes");
-    const [subcategory, setSubcategory] = useState("");
+    const [selectedCategories, setSelectedCategories] = useState<string[]>(["Juguetes"]);
     const [price, setPrice] = useState("");
+    const [originalPrice, setOriginalPrice] = useState("");
     const [images, setImages] = useState<string[]>([]);
     const [promo, setPromo] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -87,9 +89,9 @@ export default function AdminPage() {
     function resetForm() {
         setName("");
         setDescription("");
-        setCategory("Juguetes");
-        setSubcategory("");
+        setSelectedCategories(["Juguetes"]);
         setPrice("");
+        setOriginalPrice("");
         setImages([]);
         setPromo(false);
         setEditingId(null);
@@ -99,9 +101,20 @@ export default function AdminPage() {
         setEditingId(p.id);
         setName(p.name || "");
         setDescription(p.description || "");
-        setCategory(p.category || "Juguetes");
-        setSubcategory(p.subcategory || "");
+
+        // Soportar categorías múltiples o convertir la antigua categoría única
+        let cats: string[] = [];
+        if (p.categories && Array.isArray(p.categories) && p.categories.length > 0) {
+            cats = p.categories;
+        } else if (p.category) {
+            cats = [p.category];
+        } else {
+            cats = ["Juguetes"];
+        }
+        setSelectedCategories(cats);
+
         setPrice(p.price ? String(p.price) : "");
+        setOriginalPrice(p.original_price ? String(p.original_price) : "");
 
         const existingImages: string[] = [];
         if (p.image_urls && p.image_urls.length > 0) {
@@ -115,7 +128,7 @@ export default function AdminPage() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    // Redimensionar imágenes en Canvas para reducir drásticamente el peso
+    // Compresión en Canvas para evitar límite de peso en Vercel
     function compressImage(file: File): Promise<string> {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -144,7 +157,6 @@ export default function AdminPage() {
                     const ctx = canvas.getContext("2d");
                     ctx?.drawImage(img, 0, 0, width, height);
 
-                    // Compresión JPEG a 0.6
                     resolve(canvas.toDataURL("image/jpeg", 0.6));
                 };
                 img.src = e.target?.result as string;
@@ -157,13 +169,8 @@ export default function AdminPage() {
         const files = Array.from(e.target.files || []);
         if (!files.length) return;
 
-        // Procesar y comprimir todas las imágenes seleccionadas
         const compressedList = await Promise.all(files.map((file) => compressImage(file)));
-
-        // Acumular imágenes con las existentes sin sobreescribir
         setImages((prev) => [...prev, ...compressedList]);
-
-        // Limpiar la selección del input para permitir adjuntar las mismas imágenes de nuevo si lo desea
         e.target.value = "";
     }
 
@@ -171,11 +178,15 @@ export default function AdminPage() {
         setImages((prev) => prev.filter((_, i) => i !== index));
     }
 
-    function handleCategoryChange(newCategory: string) {
-        setCategory(newCategory);
-        const catData = categoryStructure.find((c) => c.name === newCategory);
-        if (!catData || !catData.subcategories.includes(subcategory)) {
-            setSubcategory("");
+    function toggleCategorySelection(cat: string) {
+        if (selectedCategories.includes(cat)) {
+            if (selectedCategories.length === 1) {
+                alert("El producto debe pertenecer al menos a una categoría.");
+                return;
+            }
+            setSelectedCategories(selectedCategories.filter((c) => c !== cat));
+        } else {
+            setSelectedCategories([...selectedCategories, cat]);
         }
     }
 
@@ -192,9 +203,10 @@ export default function AdminPage() {
         const payload = {
             name: name.trim(),
             description: description.trim(),
-            category,
-            subcategory: subcategory || null,
+            categories: selectedCategories,
+            category: selectedCategories[0] || "Juguetes", // Compatibilidad hacia atrás
             price: Number(price),
+            original_price: originalPrice ? Number(originalPrice) : null,
             image_url: images[0] || "",
             image_urls: images,
             promo,
@@ -213,7 +225,7 @@ export default function AdminPage() {
             if (res.ok) {
                 resetForm();
                 loadProducts();
-                alert("¡Producto guardado exitosamente con todas sus fotos!");
+                alert("¡Producto guardado exitosamente!");
             } else {
                 alert("Ocurrió un error al guardar el producto.");
             }
@@ -300,8 +312,6 @@ export default function AdminPage() {
         );
     }
 
-    const currentSubcategories = categoryStructure.find((c) => c.name === category)?.subcategories || [];
-
     return (
         <main className="min-h-screen bg-[#FAF0EE] text-[#3B3B3B] p-4 md:p-8">
             <div className="max-w-5xl mx-auto space-y-8">
@@ -358,10 +368,10 @@ export default function AdminPage() {
                             />
                         </div>
 
-                        {/* PRECIO */}
+                        {/* PRECIOS */}
                         <div>
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
-                                Precio (COP)
+                                Precio Actual (COP)
                             </label>
                             <input
                                 type="number"
@@ -373,49 +383,49 @@ export default function AdminPage() {
                             />
                         </div>
 
-                        {/* CATEGORÍA PRINCIPAL */}
                         <div>
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
-                                Categoría Principal
+                                Precio Anterior / Antes (Opcional, para tachar en promo)
                             </label>
-                            <select
-                                value={category}
-                                onChange={(e) => handleCategoryChange(e.target.value)}
-                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30 font-semibold"
-                            >
-                                {categoryStructure.map((c) => (
-                                    <option key={c.name} value={c.name}>
-                                        {c.name}
-                                    </option>
-                                ))}
-                            </select>
+                            <input
+                                type="number"
+                                value={originalPrice}
+                                onChange={(e) => setOriginalPrice(e.target.value)}
+                                placeholder="Ej: 120000"
+                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
+                            />
                         </div>
 
-                        {/* SUBCATEGORÍA */}
-                        {currentSubcategories.length > 0 && (
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
-                                    Subcategoría
-                                </label>
-                                <select
-                                    value={subcategory}
-                                    onChange={(e) => setSubcategory(e.target.value)}
-                                    className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
-                                >
-                                    <option value="">-- Sin subcategoría --</option>
-                                    {currentSubcategories.map((sub) => (
-                                        <option key={sub} value={sub}>
-                                            {sub}
-                                        </option>
-                                    ))}
-                                </select>
+                        {/* SELECCIÓN MÚLTIPLE DE CATEGORÍAS */}
+                        <div className="md:col-span-2 space-y-2">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
+                                Categorías (Puedes marcar una o varias)
+                            </label>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                {availableCategories.map((cat) => {
+                                    const isChecked = selectedCategories.includes(cat);
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={cat}
+                                            onClick={() => toggleCategorySelection(cat)}
+                                            className={`p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${isChecked
+                                                    ? "bg-[#B76E79] text-white border-[#B76E79] shadow-md"
+                                                    : "bg-[#FAF0EE]/40 text-[#3B3B3B] border-gray-200 hover:border-[#CFA18D]"
+                                                }`}
+                                        >
+                                            <span>{cat}</span>
+                                            {isChecked && <Check size={14} />}
+                                        </button>
+                                    );
+                                })}
                             </div>
-                        )}
+                        </div>
 
                         {/* FOTOS MULTIPLES */}
                         <div className="md:col-span-2 space-y-3">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
-                                Fotos del Producto (Selecciona una o varias)
+                                Fotos del Producto
                             </label>
 
                             <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold transition-colors text-center">
@@ -456,7 +466,7 @@ export default function AdminPage() {
                         {/* DESCRIPCIÓN */}
                         <div className="md:col-span-2">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
-                                Descripción del Producto
+                                Descripción del Producto (Solo se ve al entrar al producto)
                             </label>
                             <textarea
                                 value={description}
@@ -490,7 +500,7 @@ export default function AdminPage() {
                             className={`w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-base uppercase tracking-wider shadow-xl hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border border-white/20 ${isSaving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                         >
                             {isSaving ? (
-                                <span>Guardando producto y fotos...</span>
+                                <span>Guardando producto...</span>
                             ) : editingId ? (
                                 <>
                                     <Check size={20} /> Guardar Cambios del Producto
@@ -518,6 +528,7 @@ export default function AdminPage() {
                         <div className="divide-y divide-gray-100">
                             {products.map((p) => {
                                 const prodImgs = p.image_urls && p.image_urls.length > 0 ? p.image_urls : p.image_url ? [p.image_url] : [];
+                                const displayCategories = p.categories && p.categories.length > 0 ? p.categories.join(", ") : p.category || "Sin categoría";
 
                                 return (
                                     <div key={p.id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -541,11 +552,18 @@ export default function AdminPage() {
                                                     )}
                                                 </h4>
                                                 <p className="text-xs text-gray-500">
-                                                    {p.category} {p.subcategory ? `· ${p.subcategory}` : ""} {prodImgs.length > 1 ? `(${prodImgs.length} fotos)` : ""}
+                                                    {displayCategories} {prodImgs.length > 1 ? `· ${prodImgs.length} fotos` : ""}
                                                 </p>
-                                                <p className="text-sm font-black text-[#B76E79] mt-0.5">
-                                                    ${new Intl.NumberFormat("es-CO").format(p.price)} COP
-                                                </p>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <span className="text-sm font-black text-[#B76E79]">
+                                                        ${new Intl.NumberFormat("es-CO").format(p.price)} COP
+                                                    </span>
+                                                    {p.original_price && p.original_price > p.price && (
+                                                        <span className="text-xs text-gray-400 line-through">
+                                                            ${new Intl.NumberFormat("es-CO").format(p.original_price)}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
 

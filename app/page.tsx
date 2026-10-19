@@ -12,8 +12,10 @@ type Product = {
   name: string;
   description: string | null;
   category: string | null;
+  categories?: string[];
   subcategory?: string | null;
   price: number;
+  original_price?: number | null;
   image_url: string | null;
   image_urls?: string[];
   promo?: boolean;
@@ -72,12 +74,12 @@ const categoryStructure = [
 ];
 
 const fallback: Product[] = [
-  { id: "demo1", name: "Vibrador Conejito 12 modos", description: "Diseño ergonómico · 12 modos", category: "Juguetes", subcategory: "Vibradores", price: 89900, image_url: "", promo: true },
+  { id: "demo1", name: "Vibrador Conejito 12 modos", description: "Diseño ergonómico · 12 modos", category: "Juguetes", subcategory: "Vibradores", price: 89900, original_price: 120000, image_url: "", promo: true },
   { id: "demo2", name: "Estimulador de succión", description: "Diseño compacto", category: "Juguetes", subcategory: "Succionadores", price: 99900, image_url: "", promo: false },
-  { id: "demo3", name: "Plug anal con joya", description: "Material suave", category: "Juguetes", subcategory: "Plugs anales", price: 59900, image_url: "", promo: true },
+  { id: "demo3", name: "Plug anal con joya", description: "Material suave", category: "Juguetes", subcategory: "Plugs anales", price: 59900, original_price: 75000, image_url: "", promo: true },
   { id: "demo4", name: "Conjunto lencería de encaje", description: "Consulta las tallas disponibles", category: "Lencería", subcategory: "Talla M", price: 79900, image_url: "", promo: false },
   { id: "demo5", name: "Lubricante íntimo base agua 120 ml", description: "Presentación de 120 ml", category: "Placer y Sensaciones", subcategory: "Lubricantes", price: 39900, image_url: "", promo: true },
-  { id: "demo6", name: "Kit de bienestar íntimo", description: "Pregunta por disponibilidad", category: "Placer y Sensaciones", subcategory: "Multiorgasmo", price: 119900, image_url: "", promo: true }
+  { id: "demo6", name: "Kit de bienestar íntimo", description: "Pregunta por disponibilidad", category: "Placer y Sensaciones", subcategory: "Multiorgasmo", price: 119900, original_price: 150000, image_url: "", promo: true }
 ];
 
 export default function Home() {
@@ -106,7 +108,7 @@ export default function Home() {
   }, []);
 
   const promoImages = useMemo(() => {
-    const promoProds = products.filter(p => p.promo === true || p.category === "Promociones del Mes");
+    const promoProds = products.filter(p => p.promo === true || p.category === "Promociones del Mes" || (p.categories && p.categories.includes("Promociones del Mes")));
     const imgs: string[] = [];
 
     promoProds.forEach(p => {
@@ -137,11 +139,11 @@ export default function Home() {
 
   const visible = useMemo(() => {
     return products.filter(p => {
-      const isPromoProduct = Boolean(p.promo) || p.category === "Promociones del Mes";
+      const isPromoProduct = Boolean(p.promo) || p.category === "Promociones del Mes" || (p.categories && p.categories.includes("Promociones del Mes"));
 
       const matchCat = activeCategory === "Promociones del Mes"
         ? isPromoProduct
-        : p.category === activeCategory;
+        : (p.categories ? p.categories.includes(activeCategory) : p.category === activeCategory);
 
       const matchSubcat = activeSubcategory
         ? p.subcategory === activeSubcategory
@@ -337,7 +339,6 @@ export default function Home() {
               EXPLORA TU LADO MÁS
             </p>
 
-            {/* TÍTULO HOT ♡ (Ajustado el padding superior y leading para no cortarse en móvil) */}
             <h1 className="brand-script text-7xl sm:text-8xl md:text-[10rem] rose-gold-shine leading-normal pt-2 pb-1 drop-shadow-2xl select-none">
               Hot ♡
             </h1>
@@ -468,6 +469,8 @@ export default function Home() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
           {visible.map(p => {
             const isAdded = addedId === p.id;
+            const displayImg = (p.image_urls && p.image_urls[0]) || p.image_url;
+
             return (
               <article key={p.id} className="bg-white rounded-2xl p-3 shadow-md flex flex-col justify-between border border-[#F5D9D6] hover:shadow-lg transition-all">
                 <div>
@@ -475,8 +478,8 @@ export default function Home() {
                     href={`/producto/${p.id}`}
                     className="aspect-square rounded-xl bg-[#FAF0EE] overflow-hidden flex items-center justify-center relative cursor-pointer group block"
                   >
-                    {p.image_url ? (
-                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    {displayImg ? (
+                      <img src={displayImg} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
                       <div className="text-center p-4 group-hover:scale-105 transition-transform">
                         <Heart size={44} className="text-[#B76E79] mx-auto" />
@@ -491,15 +494,24 @@ export default function Home() {
                   </a>
 
                   <a href={`/producto/${p.id}`}>
-                    <h3 className="font-bold mt-3 leading-snug text-[#3B3B3B] cursor-pointer hover:text-[#B76E79] transition-colors">
+                    <h3 className="font-bold mt-3 leading-snug text-[#3B3B3B] cursor-pointer hover:text-[#B76E79] transition-colors line-clamp-2">
                       {p.name}
                     </h3>
                   </a>
-                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">{p.description}</p>
                 </div>
 
                 <div>
-                  <p className="text-[#B76E79] font-black text-lg mt-3">{money(p.price)}</p>
+                  {/* Precios: Actual y Precio Anterior Tachado */}
+                  <div className="mt-3 flex items-baseline gap-2">
+                    <span className="text-[#B76E79] font-black text-base md:text-lg">
+                      {money(p.price)}
+                    </span>
+                    {p.original_price && p.original_price > p.price && (
+                      <span className="text-xs text-gray-400 line-through font-semibold">
+                        {money(p.original_price)}
+                      </span>
+                    )}
+                  </div>
 
                   <button
                     onClick={() => add(p)}
@@ -565,23 +577,26 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100 mt-2">
-                  {cart.map(p => (
-                    <div key={p.id} className="py-4 flex gap-3 items-center">
-                      <div className="w-20 h-20 rounded-lg bg-[#FAF0EE] overflow-hidden flex items-center justify-center border border-[#F5D9D6]">
-                        {p.image_url ? <img src={p.image_url} className="w-full h-full object-cover" alt={p.name} /> : <Heart className="text-[#B76E79]" />}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-[#3B3B3B]">{p.name}</p>
-                        <p className="text-[#B76E79] font-bold">{money(p.price)}</p>
-                        <div className="flex items-center gap-3 mt-2">
-                          <button className="border rounded p-1 bg-white hover:bg-gray-50 cursor-pointer" onClick={() => qty(p.id, -1)}><Minus size={14} /></button>
-                          <span className="font-bold">{p.quantity}</span>
-                          <button className="border rounded p-1 bg-white hover:bg-gray-50 cursor-pointer" onClick={() => qty(p.id, 1)}><Plus size={14} /></button>
-                          <button className="ml-auto text-gray-400 hover:text-red-600 cursor-pointer" onClick={() => setCart(old => old.filter(x => x.id !== p.id))}><Trash2 size={17} /></button>
+                  {cart.map(p => {
+                    const itemImg = (p.image_urls && p.image_urls[0]) || p.image_url;
+                    return (
+                      <div key={p.id} className="py-4 flex gap-3 items-center">
+                        <div className="w-20 h-20 rounded-lg bg-[#FAF0EE] overflow-hidden flex items-center justify-center border border-[#F5D9D6]">
+                          {itemImg ? <img src={itemImg} className="w-full h-full object-cover" alt={p.name} /> : <Heart className="text-[#B76E79]" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-[#3B3B3B]">{p.name}</p>
+                          <p className="text-[#B76E79] font-bold">{money(p.price)}</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <button className="border rounded p-1 bg-white hover:bg-gray-50 cursor-pointer" onClick={() => qty(p.id, -1)}><Minus size={14} /></button>
+                            <span className="font-bold">{p.quantity}</span>
+                            <button className="border rounded p-1 bg-white hover:bg-gray-50 cursor-pointer" onClick={() => qty(p.id, 1)}><Plus size={14} /></button>
+                            <button className="ml-auto text-gray-400 hover:text-red-600 cursor-pointer" onClick={() => setCart(old => old.filter(x => x.id !== p.id))}><Trash2 size={17} /></button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

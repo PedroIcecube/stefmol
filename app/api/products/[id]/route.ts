@@ -20,6 +20,7 @@ export async function PUT(
                 category: String(body.category ?? "Juguetes"),
                 subcategory: String(body.subcategory ?? ""),
                 price: Number(body.price),
+                original_price: body.original_price ? Number(body.original_price) : null,
                 image_url: String(body.image_url ?? ""),
                 image_urls: body.image_urls ?? [],
                 promo: Boolean(body.promo)

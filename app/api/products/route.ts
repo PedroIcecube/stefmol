@@ -40,6 +40,7 @@ export async function POST(req: Request) {
       ? body.image_urls
       : (image_url ? [image_url] : []);
 
+    const original_price = body.original_price ? Number(body.original_price) : null;
     const { data, error } = await db.from("products").insert({
       name,
       description: String(body.description ?? ""),
@@ -48,6 +49,7 @@ export async function POST(req: Request) {
       price,
       image_url,
       image_urls,
+      original_price,
       promo: Boolean(body.promo),
       active: true
     }).select().single();
