@@ -27,7 +27,7 @@ const categoryStructure = [
     },
     {
         name: "Placer y Sensaciones",
-        subcategories: ["Anal", "Cremas fusión", "Estrechante", "Feromonas", "Garganta profunda", "Lubricantes", "Multiorgasmo", "Potenciador", "Comestibles", "Retardantes"]
+        subcategories: ["Anal", "Cremas fusión", "Estrechante", "Feromonas", "Garganta profunda", "Lubricantes", "Multiorgasmo", "Potencializador", "Comestibles", "Retardantes"]
     },
     {
         name: "Lencería",
@@ -463,8 +463,8 @@ export default function AdminPage() {
                                             key={cat.name}
                                             onClick={() => toggleCategory(cat.name)}
                                             className={`p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${isChecked
-                                                    ? "bg-[#B76E79] text-white border-[#B76E79] shadow-md"
-                                                    : "bg-[#FAF0EE]/40 text-[#3B3B3B] border-gray-200 hover:border-[#CFA18D]"
+                                                ? "bg-[#B76E79] text-white border-[#B76E79] shadow-md"
+                                                : "bg-[#FAF0EE]/40 text-[#3B3B3B] border-gray-200 hover:border-[#CFA18D]"
                                                 }`}
                                         >
                                             <span>{cat.name}</span>
