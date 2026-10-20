@@ -53,7 +53,7 @@ const categoryStructure = [
       "Garganta profunda",
       "Lubricantes",
       "Multiorgasmo",
-      "Potencializador",
+      "Potenciador",
       "Comestibles",
       "Retardantes"
     ]
@@ -99,12 +99,41 @@ export default function Home() {
 
   const [promoImageIndex, setPromoImageIndex] = useState(0);
 
+  // Cargar productos del servidor
   useEffect(() => {
     fetch("/api/products")
       .then(r => r.ok ? r.json() : Promise.reject())
       .then((d: Product[]) => { if (Array.isArray(d) && d.length) setProducts(d); })
       .catch(() => { })
       .finally(() => setLoading(false));
+  }, []);
+
+  // Cargar y sincronizar carrito con localStorage
+  useEffect(() => {
+    const savedCart = localStorage.getItem("stefmol_cart");
+    if (savedCart) {
+      try {
+        const parsed = JSON.parse(savedCart);
+        if (Array.isArray(parsed)) setCart(parsed);
+      } catch (e) {
+        console.error("Error al leer el carrito:", e);
+      }
+    }
+
+    function handleStorageChange() {
+      const updatedCart = localStorage.getItem("stefmol_cart");
+      if (updatedCart) {
+        try {
+          const parsed = JSON.parse(updatedCart);
+          if (Array.isArray(parsed)) setCart(parsed);
+        } catch (e) {
+          console.error("Error al sincronizar el carrito:", e);
+        }
+      }
+    }
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   const promoImages = useMemo(() => {
@@ -160,14 +189,26 @@ export default function Home() {
   function add(p: Product) {
     setCart(old => {
       const found = old.find(x => x.id === p.id);
-      return found ? old.map(x => x.id === p.id ? { ...x, quantity: x.quantity + 1 } : x) : [...old, { ...p, quantity: 1 }];
+      const updated = found
+        ? old.map(x => x.id === p.id ? { ...x, quantity: x.quantity + 1 } : x)
+        : [...old, { ...p, quantity: 1 }];
+
+      localStorage.setItem("stefmol_cart", JSON.stringify(updated));
+      return updated;
     });
     setAddedId(p.id);
     setTimeout(() => setAddedId(null), 1800);
   }
 
   function qty(id: string, delta: number) {
-    setCart(old => old.map(p => p.id === id ? { ...p, quantity: p.quantity + delta } : p).filter(p => p.quantity > 0));
+    setCart(old => {
+      const updated = old
+        .map(p => p.id === id ? { ...p, quantity: p.quantity + delta } : p)
+        .filter(p => p.quantity > 0);
+
+      localStorage.setItem("stefmol_cart", JSON.stringify(updated));
+      return updated;
+    });
   }
 
   function navigateToCategory(catName: string, subName: string | null = null) {
@@ -501,7 +542,7 @@ export default function Home() {
                 </div>
 
                 <div>
-                  {/* Precios: Actual y Precio Anterior Tachado */}
+                  {/* Precios: Actual y Precio Anterior Tachado (Sin descripción en tarjeta) */}
                   <div className="mt-3 flex items-baseline gap-2">
                     <span className="text-[#B76E79] font-black text-base md:text-lg">
                       {money(p.price)}
