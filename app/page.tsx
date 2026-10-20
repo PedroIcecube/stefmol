@@ -53,7 +53,7 @@ const categoryStructure = [
       "Garganta profunda",
       "Lubricantes",
       "Multiorgasmo",
-      "Potenciador",
+      "Potencializador",
       "Comestibles",
       "Retardantes"
     ]
