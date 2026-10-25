@@ -7,7 +7,7 @@ import {
   ArrowRight, X, ChevronRight, ChevronDown, CheckCircle2
 } from "lucide-react";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 type Product = {
   id: string;
