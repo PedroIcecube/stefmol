@@ -3,8 +3,6 @@
 import { useEffect, useState, use } from "react";
 import { ArrowLeft, ShoppingCart, CheckCircle2, Heart, Plus, Minus, MessageCircle, Truck, LockKeyhole, Headset } from "lucide-react";
 
-export const dynamic = "force-dynamic";
-
 type Product = {
     id: string;
     name: string;
@@ -27,46 +25,23 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     const resolvedParams = use(params);
     const productId = resolvedParams.id;
 
-    const [product, setProduct] = useState<Product | null>(() => {
-        if (typeof window !== "undefined") {
-            const cached = localStorage.getItem("stefmol_products_cache");
-            if (cached) {
-                try {
-                    const parsed: Product[] = JSON.parse(cached);
-                    const found = parsed.find((p) => p.id === productId);
-                    if (found) return found;
-                } catch (e) { }
-            }
-        }
-        return null;
-    });
-
-    const [loading, setLoading] = useState(!product);
-    const [selectedImage, setSelectedImage] = useState<string>(() => {
-        if (product) {
-            return (product.image_urls && product.image_urls[0]) || product.image_url || "";
-        }
-        return "";
-    });
+    const [product, setProduct] = useState<Product | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [selectedImage, setSelectedImage] = useState<string>("");
     const [added, setAdded] = useState(false);
     const [quantity, setQuantity] = useState(1);
 
-    // Sincronizar y buscar siempre en el servidor si no está en la caché o para refrescar
     useEffect(() => {
         async function fetchProduct() {
             try {
                 const res = await fetch(`/api/products`);
                 if (res.ok) {
                     const products: Product[] = await res.json();
-                    if (Array.isArray(products)) {
-                        localStorage.setItem("stefmol_products_cache", JSON.stringify(products));
-                        const found = products.find((p) => p.id === productId);
-                        if (found) {
-                            setProduct(found);
-                            if (!selectedImage) {
-                                setSelectedImage((found.image_urls && found.image_urls[0]) || found.image_url || "");
-                            }
-                        }
+                    const found = products.find((p) => p.id === productId);
+                    if (found) {
+                        setProduct(found);
+                        const initialImg = (found.image_urls && found.image_urls[0]) || found.image_url || "";
+                        setSelectedImage(initialImg);
                     }
                 }
             } catch (err) {
@@ -75,13 +50,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                 setLoading(false);
             }
         }
-
         fetchProduct();
     }, [productId]);
 
     function addToCart() {
         if (!product) return;
 
+        // Obtener carrito guardado
         const savedCart = localStorage.getItem("stefmol_cart");
         let currentCart: CartItem[] = savedCart ? JSON.parse(savedCart) : [];
 
@@ -93,14 +68,17 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             currentCart.push({ ...product, quantity });
         }
 
+        // Guardar carrito actualizado
         localStorage.setItem("stefmol_cart", JSON.stringify(currentCart));
+
+        // Notificar cambio al sistema
         window.dispatchEvent(new Event("storage"));
 
         setAdded(true);
         setTimeout(() => setAdded(false), 2000);
     }
 
-    if (loading && !product) {
+    if (loading) {
         return (
             <main className="min-h-screen bg-[#FAF0EE] text-[#3B3B3B] flex items-center justify-center p-4">
                 <p className="text-[#B76E79] font-bold text-lg animate-pulse">Cargando detalles del producto...</p>
@@ -157,6 +135,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                             )}
                         </div>
 
+                        {/* THUMBNAILS SI HAY MÁS DE 1 IMAGEN */}
                         {allImages.length > 1 && (
                             <div className="flex gap-3 overflow-x-auto pb-2">
                                 {allImages.map((img, idx) => (
@@ -226,11 +205,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                                 </div>
                             </div>
 
+                            {/* BOTÓN CON COLOR ROSE-GOLD VISIBLE Y ACCIÓN DE AGREGAR */}
                             <button
                                 onClick={addToCart}
                                 className={`w-full py-4 px-6 rounded-2xl text-white font-black text-base uppercase tracking-wider shadow-xl transition-all duration-300 transform active:scale-98 flex items-center justify-center gap-3 cursor-pointer ${added
-                                        ? "bg-emerald-600 shadow-emerald-600/30"
-                                        : "bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] hover:opacity-95 shadow-[#B76E79]/20"
+                                    ? "bg-emerald-600 shadow-emerald-600/30"
+                                    : "bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] hover:opacity-95 shadow-[#B76E79]/20"
                                     }`}
                             >
                                 {added ? (

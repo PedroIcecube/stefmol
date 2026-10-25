@@ -28,62 +28,30 @@ type CartItem = Product & { quantity: number };
 const money = (n: number) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
 
 const categoryStructure = [
-  {
-    name: "Promociones del Mes",
-    subcategories: []
-  },
+  { name: "Promociones del Mes", subcategories: [] },
   {
     name: "Juguetes",
-    subcategories: [
-      "Anillos vibradores",
-      "Dildos",
-      "Juegos eróticos",
-      "Masturbadores",
-      "Plugs anales",
-      "BDSM",
-      "Succionadores",
-      "Vibradores"
-    ]
+    subcategories: ["Anillos vibradores", "Dildos", "Juegos eróticos", "Masturbadores", "Plugs anales", "BDSM", "Succionadores", "Vibradores"]
   },
   {
     name: "Placer y Sensaciones",
-    subcategories: [
-      "Anal",
-      "Cremas fusión",
-      "Estrechante",
-      "Feromonas",
-      "Garganta profunda",
-      "Lubricantes",
-      "Multiorgasmo",
-      "Potenciador",
-      "Comestibles",
-      "Retardantes"
-    ]
+    subcategories: ["Anal", "Cremas fusión", "Estrechante", "Feromonas", "Garganta profunda", "Lubricantes", "Multiorgasmo", "Potenciador", "Comestibles", "Retardantes"]
   },
   {
     name: "Lencería",
-    subcategories: [
-      "Talla XS",
-      "Talla S",
-      "Talla M",
-      "Talla L",
-      "Talla XL",
-      "Talla XXL",
-      "Mallas",
-      "Cuero"
-    ]
+    subcategories: ["Talla XS", "Talla S", "Talla M", "Talla L", "Talla XL", "Talla XXL", "Mallas", "Cuero"]
   }
 ];
 
 export default function Home() {
-  // Carga instantánea exclusiva desde la caché real (sin productos falsos)
+  // Carga instantánea desde localStorage al primer milisegundo (0 segundos de espera)
   const [products, setProducts] = useState<Product[]>(() => {
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem("stefmol_products_cache");
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed)) return parsed;
         } catch (e) { }
       }
     }
@@ -113,7 +81,7 @@ export default function Home() {
   const [addedId, setAddedId] = useState<string | null>(null);
   const [promoImageIndex, setPromoImageIndex] = useState(0);
 
-  // Sincronización silenciosa en segundo plano con el servidor y Supabase
+  // Sincronización en segundo plano (no bloquea la pantalla)
   useEffect(() => {
     fetch("/api/products")
       .then(r => r.ok ? r.json() : Promise.reject())
@@ -126,7 +94,6 @@ export default function Home() {
       .catch(() => { });
   }, []);
 
-  // Escuchar cambios en el carrito
   useEffect(() => {
     function handleStorageChange() {
       const updatedCart = localStorage.getItem("stefmol_cart");
@@ -144,7 +111,6 @@ export default function Home() {
   const promoImages = useMemo(() => {
     const promoProds = products.filter(p => p.promo === true || p.category === "Promociones del Mes" || (p.categories && p.categories.includes("Promociones del Mes")));
     const imgs: string[] = [];
-
     promoProds.forEach(p => {
       if (p.image_urls && p.image_urls.length > 0) {
         imgs.push(...p.image_urls.filter(Boolean));
@@ -152,17 +118,14 @@ export default function Home() {
         imgs.push(p.image_url);
       }
     });
-
     return imgs;
   }, [products]);
 
   useEffect(() => {
     if (promoImages.length <= 1) return;
-
     const interval = setInterval(() => {
       setPromoImageIndex((prev) => (prev + 1) % promoImages.length);
     }, 3500);
-
     return () => clearInterval(interval);
   }, [promoImages]);
 
@@ -174,17 +137,11 @@ export default function Home() {
   const visible = useMemo(() => {
     return products.filter(p => {
       const isPromoProduct = Boolean(p.promo) || p.category === "Promociones del Mes" || (p.categories && p.categories.includes("Promociones del Mes"));
-
       const matchCat = activeCategory === "Promociones del Mes"
         ? isPromoProduct
         : (p.categories ? p.categories.includes(activeCategory) : p.category === activeCategory);
-
-      const matchSubcat = activeSubcategory
-        ? p.subcategory === activeSubcategory
-        : true;
-
+      const matchSubcat = activeSubcategory ? p.subcategory === activeSubcategory : true;
       const matchSearch = `${p.name} ${p.description ?? ""}`.toLowerCase().includes(search.toLowerCase());
-
       return matchCat && matchSubcat && matchSearch;
     });
   }, [products, activeCategory, activeSubcategory, search]);
@@ -197,7 +154,6 @@ export default function Home() {
       const updated = found
         ? old.map(x => x.id === p.id ? { ...x, quantity: x.quantity + 1 } : x)
         : [...old, { ...p, quantity: 1 }];
-
       localStorage.setItem("stefmol_cart", JSON.stringify(updated));
       return updated;
     });
@@ -210,7 +166,6 @@ export default function Home() {
       const updated = old
         .map(p => p.id === id ? { ...p, quantity: p.quantity + delta } : p)
         .filter(p => p.quantity > 0);
-
       localStorage.setItem("stefmol_cart", JSON.stringify(updated));
       return updated;
     });
@@ -227,37 +182,22 @@ export default function Home() {
   function checkout() {
     const rawNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "573114020157";
     const number = rawNumber.replace(/\D/g, "");
-
-    if (!number) {
-      alert("Por favor configura el número de WhatsApp en tu archivo .env.local");
-      return;
-    }
-
     const lines = cart.map(p => `🛍️ ${p.name}\nCantidad: ${p.quantity}\nPrecio unidad: ${money(p.price)}\nSubtotal: ${money(p.price * p.quantity)}`).join("\n\n--------------------\n");
     const message = `¡Hola! 👋 Quiero hacer este pedido:\n\n${lines}\n\nTOTAL: ${money(total)}\n\nNotas: ${note || "Sin notas"}\n\n¿Cómo puedo realizar el pago y en cuánto tiempo llega?`;
-
     window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
   }
 
   return (
     <main className="bg-[#FAF0EE] text-[#3B3B3B] min-h-screen">
-
-      {/* BARRA SUPERIOR */}
       <header className="bg-gradient-to-r from-[#3B3B3B] via-[#1A1A1A] to-[#000000] text-white px-5 md:px-10 py-4 shadow-lg sticky top-0 z-40 border-b border-[#CFA18D]/30">
         <div className="mx-auto max-w-7xl flex items-center justify-between gap-3">
-          <button
-            onClick={() => setMenuOpen(true)}
-            aria-label="Menú"
-            className="p-2 hover:bg-white/10 rounded-xl transition-colors cursor-pointer text-[#CFA18D]"
-          >
+          <button onClick={() => setMenuOpen(true)} aria-label="Menú" className="p-2 hover:bg-white/10 rounded-xl transition-colors cursor-pointer text-[#CFA18D]">
             <Menu size={24} />
           </button>
-
           <a href="#" className="text-center">
             <div className="brand-script text-5xl md:text-6xl rose-gold-text drop-shadow-sm leading-none">Stefmol</div>
             <div className="text-[9px] tracking-[.3em] text-[#CFA18D] font-bold uppercase mt-1">BOUTIQUE ERÓTICA</div>
           </a>
-
           <div className="flex gap-4 items-center">
             <a href="#catalogo" aria-label="Buscar" className="p-2 hover:bg-white/10 rounded-xl transition-colors text-[#CFA18D]">
               <Search size={22} />
@@ -274,27 +214,20 @@ export default function Home() {
         </div>
       </header>
 
-      {/* MENÚ LATERAL DRAWER */}
       {menuOpen && (
         <div className="fixed inset-0 z-50 flex">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity" onClick={() => setMenuOpen(false)} />
           <div className="relative w-full max-w-sm sm:max-w-md bg-white text-[#3B3B3B] h-full shadow-2xl flex flex-col z-10 overflow-y-auto">
-
             <div className="flex items-center justify-between p-4 border-b border-[#F5D9D6] bg-[#FAF0EE]">
               <div>
                 <div className="brand-script text-3xl rose-gold-text leading-none">Stefmol</div>
                 <div className="text-[8px] tracking-[.2em] text-[#B76E79] font-bold uppercase mt-0.5">BOUTIQUE ERÓTICA</div>
               </div>
-              <button onClick={() => setMenuOpen(false)} className="p-2 rounded-full hover:bg-gray-200/60 text-[#3B3B3B] transition-colors" aria-label="Cerrar">
-                <X size={22} />
-              </button>
+              <button onClick={() => setMenuOpen(false)} className="p-2 rounded-full hover:bg-gray-200/60 text-[#3B3B3B] transition-colors" aria-label="Cerrar"><X size={22} /></button>
             </div>
-
             <div className="p-4">
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
-                  <Search size={18} />
-                </span>
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400"><Search size={18} /></span>
                 <input
                   type="text"
                   value={search}
@@ -304,12 +237,10 @@ export default function Home() {
                 />
               </div>
             </div>
-
             <div className="flex-1 px-4 py-2 space-y-2">
               {categoryStructure.map((cat, index) => {
                 const isExpanded = expandedMenuCategory === cat.name;
                 const hasSubs = cat.subcategories.length > 0;
-
                 return (
                   <div key={index} className="border-b border-gray-100 pb-2">
                     <div
@@ -324,12 +255,9 @@ export default function Home() {
                     >
                       <span>{cat.name}</span>
                       {hasSubs && (
-                        <span>
-                          {isExpanded ? <ChevronDown size={18} className="text-[#B76E79]" /> : <ChevronRight size={18} className="text-gray-400" />}
-                        </span>
+                        <span>{isExpanded ? <ChevronDown size={18} className="text-[#B76E79]" /> : <ChevronRight size={18} className="text-gray-400" />}</span>
                       )}
                     </div>
-
                     {hasSubs && isExpanded && (
                       <div className="ml-4 mt-1 space-y-1 bg-[#F5D9D6]/20 p-2 rounded-xl border-l-2 border-[#B76E79]">
                         <button
@@ -338,7 +266,6 @@ export default function Home() {
                         >
                           Ver todo en {cat.name}
                         </button>
-
                         {cat.subcategories.map((sub, sIdx) => (
                           <button
                             key={sIdx}
@@ -354,13 +281,10 @@ export default function Home() {
                 );
               })}
             </div>
-
             <div className="p-5 bg-[#F5D9D6]/30 m-4 rounded-3xl border border-[#CFA18D]/30 space-y-3">
               <div>
                 <h4 className="font-bold text-[#3B3B3B] text-base">¿Dudas? Te asesoramos</h4>
-                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                  Escríbenos por WhatsApp, respondemos con total discreción.
-                </p>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">Escríbenos por WhatsApp, respondemos con total discreción.</p>
               </div>
               <a
                 href="https://wa.me/573114020157?text=¡Hola!%20Quiero%20hacer%20una%20consulta%20sobre%20productos%20en%20Stefmol."
@@ -372,36 +296,20 @@ export default function Home() {
                 <span>Escribir por WhatsApp</span>
               </a>
             </div>
-
           </div>
         </div>
       )}
 
-      {/* SECCIÓN HERO */}
       <section className="bg-gradient-to-b from-[#3B3B3B] via-[#1F1F1F] to-[#000000] text-white border-b border-[#CFA18D]/20 overflow-hidden">
         <div className="mx-auto max-w-7xl px-6 py-16 md:py-24 grid md:grid-cols-2 items-center gap-8">
           <div className="text-center flex flex-col items-center justify-center pt-4">
-            <p className="text-[#CFA18D] italic text-base md:text-2xl font-light tracking-widest uppercase">
-              EXPLORA TU LADO MÁS
-            </p>
-
-            <h1 className="brand-script text-7xl sm:text-8xl md:text-[10rem] rose-gold-shine leading-normal pt-2 pb-1 drop-shadow-2xl select-none">
-              Hot ♡
-            </h1>
-
-            <p className="tracking-[.25em] text-xs md:text-sm mt-1 text-[#F5D9D6] uppercase font-medium">
-              JUGUETES, LENCERÍA,<br /> ACCESORIOS Y MUCHO MÁS
-            </p>
-
-            <a
-              href="#catalogo"
-              className="inline-flex items-center gap-4 rounded-full bg-gradient-to-r from-[#B76E79] to-[#CFA18D] px-8 py-4 mt-8 font-bold text-white shadow-lg shadow-black/40 hover:scale-105 active:scale-95 transition-all"
-            >
+            <p className="text-[#CFA18D] italic text-base md:text-2xl font-light tracking-widest uppercase">EXPLORA TU LADO MÁS</p>
+            <h1 className="brand-script text-7xl sm:text-8xl md:text-[10rem] rose-gold-shine leading-normal pt-2 pb-1 drop-shadow-2xl select-none">Hot ♡</h1>
+            <p className="tracking-[.25em] text-xs md:text-sm mt-1 text-[#F5D9D6] uppercase font-medium">JUGUETES, LENCERÍA,<br /> ACCESORIOS Y MUCHO MÁS</p>
+            <a href="#catalogo" className="inline-flex items-center gap-4 rounded-full bg-gradient-to-r from-[#B76E79] to-[#CFA18D] px-8 py-4 mt-8 font-bold text-white shadow-lg shadow-black/40 hover:scale-105 active:scale-95 transition-all">
               VER PRODUCTOS <ArrowRight size={20} />
             </a>
           </div>
-
-          {/* BANNER DE PROMOCIONES DEL MES */}
           <div
             onClick={() => navigateToCategory("Promociones del Mes", null)}
             className="relative rounded-3xl border border-[#CFA18D]/40 overflow-hidden min-h-64 md:min-h-80 flex items-center justify-center text-center p-8 cursor-pointer hover:border-[#D4AF37] transition-all shadow-2xl hover:scale-[1.01] group bg-black/80"
@@ -413,9 +321,7 @@ export default function Home() {
                 style={{ backgroundImage: `url(${imgUrl})` }}
               />
             ))}
-
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
-
             <div className="relative z-10">
               <Heart className="mx-auto text-[#CFA18D] group-hover:scale-110 transition-transform drop-shadow-md" size={52} />
               <p className="brand-script text-5xl md:text-6xl rose-gold-text mt-4 drop-shadow-lg leading-none">Promociones del Mes</p>
@@ -427,7 +333,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* TARJETAS INFORMATIVAS */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-7xl mx-auto px-5 -mt-6 relative z-10">
         {[
           { icon: <Truck className="text-[#B76E79]" />, title: "Envíos discretos" },
@@ -442,7 +347,6 @@ export default function Home() {
         ))}
       </section>
 
-      {/* CATÁLOGO DE PRODUCTOS */}
       <section id="catalogo" className="max-w-7xl mx-auto px-5 py-12">
         <div className="flex flex-wrap justify-between items-end gap-4 mb-6">
           <div>
@@ -462,7 +366,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* CHIPS DE CATEGORÍAS PRINCIPALES */}
         <div className="flex gap-2 overflow-x-auto pb-3">
           {categoryStructure.map(s => (
             <button
@@ -472,25 +375,18 @@ export default function Home() {
                 setActiveSubcategory(null);
                 setExpandedMenuCategory(s.name);
               }}
-              className={`whitespace-nowrap rounded-full px-5 py-2 text-sm font-bold transition-all cursor-pointer ${activeCategory === s.name
-                ? "bg-gradient-to-r from-[#B76E79] to-[#CFA18D] text-white shadow-md"
-                : "bg-white border border-[#CFA18D]/30 text-[#3B3B3B] hover:bg-[#F5D9D6]/30"
-                }`}
+              className={`whitespace-nowrap rounded-full px-5 py-2 text-sm font-bold transition-all cursor-pointer ${activeCategory === s.name ? "bg-gradient-to-r from-[#B76E79] to-[#CFA18D] text-white shadow-md" : "bg-white border border-[#CFA18D]/30 text-[#3B3B3B] hover:bg-[#F5D9D6]/30"}`}
             >
               {s.name}
             </button>
           ))}
         </div>
 
-        {/* CHIPS DE SUBSECCIONES */}
         {currentSubcategories.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-4 mt-1 pt-2 border-t border-[#CFA18D]/20">
             <button
               onClick={() => setActiveSubcategory(null)}
-              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${activeSubcategory === null
-                ? "bg-[#3B3B3B] text-white"
-                : "bg-white text-[#3B3B3B] border border-gray-200 hover:bg-gray-100"
-                }`}
+              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${activeSubcategory === null ? "bg-[#3B3B3B] text-white" : "bg-white text-[#3B3B3B] border border-gray-200 hover:bg-gray-100"}`}
             >
               Ver todos en {activeCategory}
             </button>
@@ -498,10 +394,7 @@ export default function Home() {
               <button
                 key={sub}
                 onClick={() => setActiveSubcategory(sub)}
-                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${activeSubcategory === sub
-                  ? "bg-[#B76E79] text-white shadow-sm"
-                  : "bg-[#F5D9D6]/40 text-[#B76E79] hover:bg-[#F5D9D6] border border-[#CFA18D]/30"
-                  }`}
+                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${activeSubcategory === sub ? "bg-[#B76E79] text-white shadow-sm" : "bg-[#F5D9D6]/40 text-[#B76E79] hover:bg-[#F5D9D6] border border-[#CFA18D]/30"}`}
               >
                 {sub}
               </button>
@@ -513,14 +406,10 @@ export default function Home() {
           {visible.map(p => {
             const isAdded = addedId === p.id;
             const displayImg = (p.image_urls && p.image_urls[0]) || p.image_url;
-
             return (
               <article key={p.id} className="bg-white rounded-2xl p-3 shadow-md flex flex-col justify-between border border-[#F5D9D6] hover:shadow-lg transition-all">
                 <div>
-                  <a
-                    href={`/producto/${p.id}`}
-                    className="aspect-square rounded-xl bg-[#FAF0EE] overflow-hidden flex items-center justify-center relative cursor-pointer group block"
-                  >
+                  <a href={`/producto/${p.id}`} className="aspect-square rounded-xl bg-[#FAF0EE] overflow-hidden flex items-center justify-center relative cursor-pointer group block">
                     {displayImg ? (
                       <img src={displayImg} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
@@ -530,37 +419,23 @@ export default function Home() {
                       </div>
                     )}
                     {p.promo && (
-                      <span className="absolute top-2 left-2 bg-[#B76E79] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
-                        Promo
-                      </span>
+                      <span className="absolute top-2 left-2 bg-[#B76E79] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">Promo</span>
                     )}
                   </a>
-
                   <a href={`/producto/${p.id}`}>
-                    <h3 className="font-bold mt-3 leading-snug text-[#3B3B3B] cursor-pointer hover:text-[#B76E79] transition-colors line-clamp-2">
-                      {p.name}
-                    </h3>
+                    <h3 className="font-bold mt-3 leading-snug text-[#3B3B3B] cursor-pointer hover:text-[#B76E79] transition-colors line-clamp-2">{p.name}</h3>
                   </a>
                 </div>
-
                 <div>
                   <div className="mt-3 flex items-baseline gap-2">
-                    <span className="text-[#B76E79] font-black text-base md:text-lg">
-                      {money(p.price)}
-                    </span>
+                    <span className="text-[#B76E79] font-black text-base md:text-lg">{money(p.price)}</span>
                     {p.original_price && p.original_price > p.price && (
-                      <span className="text-xs text-gray-400 line-through font-semibold">
-                        {money(p.original_price)}
-                      </span>
+                      <span className="text-xs text-gray-400 line-through font-semibold">{money(p.original_price)}</span>
                     )}
                   </div>
-
                   <button
                     onClick={() => add(p)}
-                    className={`w-full rounded-xl p-3 mt-3 flex justify-center items-center gap-2 font-bold transition-all duration-300 transform active:scale-95 shadow-md cursor-pointer ${isAdded
-                      ? "bg-emerald-600 text-white shadow-emerald-500/30"
-                      : "bg-gradient-to-r from-[#B76E79] to-[#CFA18D] text-white shadow-black/10 hover:opacity-95"
-                      }`}
+                    className={`w-full rounded-xl p-3 mt-3 flex justify-center items-center gap-2 font-bold transition-all duration-300 transform active:scale-95 shadow-md cursor-pointer ${isAdded ? "bg-emerald-600 text-white shadow-emerald-500/30" : "bg-gradient-to-r from-[#B76E79] to-[#CFA18D] text-white shadow-black/10 hover:opacity-95"}`}
                   >
                     {isAdded ? (
                       <>
@@ -583,7 +458,6 @@ export default function Home() {
         {!visible.length && <p className="py-12 text-center text-gray-500">No encontramos productos en esta categoría o subsección.</p>}
       </section>
 
-      {/* FOOTER */}
       <footer className="bg-gradient-to-b from-[#1F1F1F] to-[#000000] text-white px-5 py-10 border-t border-[#CFA18D]/20">
         <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center text-sm">
           {[
@@ -602,7 +476,6 @@ export default function Home() {
         <p className="text-center mt-3"><a className="text-[#D4AF37] underline text-xs cursor-pointer hover:text-white" href="/admin">Administrar productos</a></p>
       </footer>
 
-      {/* CARRITO / CHECKOUT DRAWER */}
       {cartOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 flex justify-end">
           <div className="bg-white w-full max-w-lg h-full overflow-y-auto p-5 md:p-7 text-[#3B3B3B] flex flex-col justify-between">
@@ -611,7 +484,6 @@ export default function Home() {
                 <h2 className="text-2xl font-black">Mi carrito ({cart.reduce((s, p) => s + p.quantity, 0)})</h2>
                 <button onClick={() => setCartOpen(false)} aria-label="Cerrar" className="p-2 rounded-full hover:bg-gray-100 cursor-pointer"><X /></button>
               </div>
-
               {!cart.length ? (
                 <div className="text-center py-20 text-gray-500">
                   <ShoppingCart size={44} className="mx-auto mb-4 text-gray-400" />
@@ -642,17 +514,14 @@ export default function Home() {
                 </div>
               )}
             </div>
-
             {cart.length > 0 && (
               <div className="border-t border-[#F5D9D6] pt-4 mt-4">
                 <label className="block text-sm font-semibold mb-2">Notas del pedido (opcional)</label>
                 <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Color, talla, referencias…" className="w-full border border-gray-200 rounded-xl p-3 min-h-20 text-sm focus:outline-[#B76E79]" />
-
                 <div className="flex justify-between text-xl font-black my-4">
                   <span>Total:</span>
                   <span className="text-[#B76E79]">{money(total)}</span>
                 </div>
-
                 <button onClick={checkout} className="w-full rounded-full bg-[#25D366] hover:bg-[#20ba5a] text-white py-4 font-bold flex justify-center items-center gap-2 shadow-lg shadow-green-600/20 transition-all cursor-pointer">
                   <MessageCircle /> Enviar pedido por WhatsApp
                 </button>
