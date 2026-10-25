@@ -42,7 +42,7 @@ const categoryStructure = [
 ];
 
 export default function HomeClient({ initialProducts }: { initialProducts: Product[] }) {
-    // 1. Estado de productos con caché local
+    // 1. Carga síncrona inmediata desde localStorage (0 ms de espera)
     const [products, setProducts] = useState<Product[]>(() => {
         if (typeof window !== "undefined") {
             const cached = localStorage.getItem("stefmol_products_cache");
@@ -53,10 +53,10 @@ export default function HomeClient({ initialProducts }: { initialProducts: Produ
                 } catch (e) { }
             }
         }
-        return initialProducts;
+        return initialProducts || [];
     });
 
-    // 2. Sincronización en segundo plano con la API
+    // 2. Sincronización transparente en segundo plano con la API/Supabase
     useEffect(() => {
         fetch("/api/products")
             .then((r) => (r.ok ? r.json() : Promise.reject()))
@@ -93,7 +93,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: Produ
     const [addedId, setAddedId] = useState<string | null>(null);
     const [promoImageIndex, setPromoImageIndex] = useState(0);
 
-    // Escuchar cambios en el carrito
+    // Sincronizar carrito entre pestañas y eventos
     useEffect(() => {
         function handleStorageChange() {
             const updatedCart = localStorage.getItem("stefmol_cart");
