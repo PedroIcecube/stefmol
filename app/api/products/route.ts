@@ -16,7 +16,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Faltan datos obligatorios" }, { status: 400 });
     }
 
-    // Asegurar que categories sea un array y tenga al menos una categoría
     const categories = Array.isArray(body.categories) && body.categories.length > 0
       ? body.categories
       : [body.category || "Juguetes"];
@@ -28,7 +27,7 @@ export async function POST(request: Request) {
       name,
       description: String(body.description ?? ""),
       category: categories[0] || "Juguetes",
-      categories: categories, // <--- Guardar la lista completa aquí
+      categories: categories,
       subcategory: body.subcategory ? String(body.subcategory) : null,
       price,
       original_price,
@@ -54,7 +53,12 @@ export async function GET() {
   try {
     const { data, error } = await db.from("products").select("*").order("created_at", { ascending: false });
     if (error) throw error;
-    return NextResponse.json(data);
+
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+      },
+    });
   } catch (err) {
     return NextResponse.json({ error: "Error al obtener productos" }, { status: 500 });
   }
