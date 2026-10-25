@@ -27,7 +27,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     const resolvedParams = use(params);
     const productId = resolvedParams.id;
 
-    // Carga instantánea desde la caché local de productos si existe
     const [product, setProduct] = useState<Product | null>(() => {
         if (typeof window !== "undefined") {
             const cached = localStorage.getItem("stefmol_products_cache");
@@ -52,18 +51,21 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     const [added, setAdded] = useState(false);
     const [quantity, setQuantity] = useState(1);
 
+    // Sincronizar y buscar siempre en el servidor si no está en la caché o para refrescar
     useEffect(() => {
         async function fetchProduct() {
             try {
                 const res = await fetch(`/api/products`);
                 if (res.ok) {
                     const products: Product[] = await res.json();
-                    localStorage.setItem("stefmol_products_cache", JSON.stringify(products));
-                    const found = products.find((p) => p.id === productId);
-                    if (found) {
-                        setProduct(found);
-                        if (!selectedImage) {
-                            setSelectedImage((found.image_urls && found.image_urls[0]) || found.image_url || "");
+                    if (Array.isArray(products)) {
+                        localStorage.setItem("stefmol_products_cache", JSON.stringify(products));
+                        const found = products.find((p) => p.id === productId);
+                        if (found) {
+                            setProduct(found);
+                            if (!selectedImage) {
+                                setSelectedImage((found.image_urls && found.image_urls[0]) || found.image_url || "");
+                            }
                         }
                     }
                 }
@@ -74,12 +76,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             }
         }
 
-        if (!product) {
-            fetchProduct();
-        } else {
-            setLoading(false);
-        }
-    }, [productId, product, selectedImage]);
+        fetchProduct();
+    }, [productId]);
 
     function addToCart() {
         if (!product) return;
