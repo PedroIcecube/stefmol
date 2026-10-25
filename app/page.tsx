@@ -75,17 +75,8 @@ const categoryStructure = [
   }
 ];
 
-const fallback: Product[] = [
-  { id: "demo1", name: "Vibrador Conejito 12 modos", description: "Diseño ergonómico · 12 modos", category: "Juguetes", subcategory: "Vibradores", price: 89900, original_price: 120000, image_url: "", promo: true },
-  { id: "demo2", name: "Estimulador de succión", description: "Diseño compacto", category: "Juguetes", subcategory: "Succionadores", price: 99900, image_url: "", promo: false },
-  { id: "demo3", name: "Plug anal con joya", description: "Material suave", category: "Juguetes", subcategory: "Plugs anales", price: 59900, original_price: 75000, image_url: "", promo: true },
-  { id: "demo4", name: "Conjunto lencería de encaje", description: "Consulta las tallas disponibles", category: "Lencería", subcategory: "Talla M", price: 79900, image_url: "", promo: false },
-  { id: "demo5", name: "Lubricante íntimo base agua 120 ml", description: "Presentación de 120 ml", category: "Placer y Sensaciones", subcategory: "Lubricantes", price: 39900, image_url: "", promo: true },
-  { id: "demo6", name: "Kit de bienestar íntimo", description: "Pregunta por disponibilidad", category: "Placer y Sensaciones", subcategory: "Multiorgasmo", price: 119900, original_price: 150000, image_url: "", promo: true }
-];
-
 export default function Home() {
-  // Carga instantánea desde localStorage para evitar cualquier retraso o pantalla en blanco
+  // Carga instantánea exclusiva desde la caché real (sin productos falsos)
   const [products, setProducts] = useState<Product[]>(() => {
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem("stefmol_products_cache");
@@ -96,7 +87,7 @@ export default function Home() {
         } catch (e) { }
       }
     }
-    return fallback;
+    return [];
   });
 
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -122,12 +113,12 @@ export default function Home() {
   const [addedId, setAddedId] = useState<string | null>(null);
   const [promoImageIndex, setPromoImageIndex] = useState(0);
 
-  // Sincronización silenciosa en segundo plano con el servidor
+  // Sincronización silenciosa en segundo plano con el servidor y Supabase
   useEffect(() => {
     fetch("/api/products")
       .then(r => r.ok ? r.json() : Promise.reject())
       .then((d: Product[]) => {
-        if (Array.isArray(d) && d.length > 0) {
+        if (Array.isArray(d)) {
           setProducts(d);
           localStorage.setItem("stefmol_products_cache", JSON.stringify(d));
         }
@@ -135,7 +126,7 @@ export default function Home() {
       .catch(() => { });
   }, []);
 
-  // Escuchar cambios en el carrito (desde detalle o pestañas)
+  // Escuchar cambios en el carrito
   useEffect(() => {
     function handleStorageChange() {
       const updatedCart = localStorage.getItem("stefmol_cart");
