@@ -99,11 +99,31 @@ export default function Home() {
 
   const [promoImageIndex, setPromoImageIndex] = useState(0);
 
-  // Cargar productos del servidor
+  // Cargar productos al iniciar (con caché en localStorage para carga instantánea)
   useEffect(() => {
+    // 1. Cargar la caché inmediatamente para que los productos aparezcan sin demoras
+    const cachedProducts = localStorage.getItem("stefmol_products_cache");
+    if (cachedProducts) {
+      try {
+        const parsed = JSON.parse(cachedProducts);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setProducts(parsed);
+          setLoading(false);
+        }
+      } catch (e) {
+        console.error("Error leyendo la caché de productos:", e);
+      }
+    }
+
+    // 2. Traer productos actualizados del servidor en segundo plano
     fetch("/api/products")
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then((d: Product[]) => { if (Array.isArray(d) && d.length) setProducts(d); })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d: Product[]) => {
+        if (Array.isArray(d) && d.length > 0) {
+          setProducts(d);
+          localStorage.setItem("stefmol_products_cache", JSON.stringify(d));
+        }
+      })
       .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
