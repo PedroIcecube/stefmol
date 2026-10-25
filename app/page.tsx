@@ -7,8 +7,6 @@ import {
   ArrowRight, X, ChevronRight, ChevronDown, CheckCircle2
 } from "lucide-react";
 
-export const revalidate = 60;
-
 type Product = {
   id: string;
   name: string;
@@ -82,7 +80,6 @@ export default function Home() {
   const [addedId, setAddedId] = useState<string | null>(null);
   const [promoImageIndex, setPromoImageIndex] = useState(0);
 
-  // Sincronización en segundo plano con control de carga
   useEffect(() => {
     fetch("/api/products")
       .then(r => r.ok ? r.json() : Promise.reject())
@@ -404,7 +401,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* SKELETON LOADERS SI ESTÁ CARGANDO POR PRIMERA VEZ */}
         {loading && products.length === 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
             {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
