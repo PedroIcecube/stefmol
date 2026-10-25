@@ -85,7 +85,7 @@ const fallback: Product[] = [
 ];
 
 export default function Home() {
-  // Inicialización instantánea de productos desde localStorage para evitar demoras
+  // Carga instantánea desde localStorage para evitar cualquier retraso o pantalla en blanco
   const [products, setProducts] = useState<Product[]>(() => {
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem("stefmol_products_cache");
@@ -99,7 +99,6 @@ export default function Home() {
     return fallback;
   });
 
-  // Inicialización instantánea del carrito desde localStorage
   const [cart, setCart] = useState<CartItem[]>(() => {
     if (typeof window !== "undefined") {
       const savedCart = localStorage.getItem("stefmol_cart");
@@ -118,14 +117,12 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-
   const [expandedMenuCategory, setExpandedMenuCategory] = useState<string | null>("Juguetes");
-
   const [note, setNote] = useState("");
   const [addedId, setAddedId] = useState<string | null>(null);
   const [promoImageIndex, setPromoImageIndex] = useState(0);
 
-  // Sincronización en segundo plano con el servidor
+  // Sincronización silenciosa en segundo plano con el servidor
   useEffect(() => {
     fetch("/api/products")
       .then(r => r.ok ? r.json() : Promise.reject())
@@ -421,8 +418,7 @@ export default function Home() {
             {promoImages.length > 0 && promoImages.map((imgUrl, idx) => (
               <div
                 key={idx}
-                className={`absolute inset-0 bg-cover bg-center transition-all duration-1000 ${idx === promoImageIndex ? "opacity-45 scale-105" : "opacity-0 scale-100"
-                  }`}
+                className={`absolute inset-0 bg-cover bg-center transition-all duration-1000 ${idx === promoImageIndex ? "opacity-45 scale-105" : "opacity-0 scale-100"}`}
                 style={{ backgroundImage: `url(${imgUrl})` }}
               />
             ))}
@@ -557,7 +553,6 @@ export default function Home() {
                 </div>
 
                 <div>
-                  {/* Precios: Actual y Precio Anterior Tachado (Sin descripción en tarjeta) */}
                   <div className="mt-3 flex items-baseline gap-2">
                     <span className="text-[#B76E79] font-black text-base md:text-lg">
                       {money(p.price)}
