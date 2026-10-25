@@ -7,6 +7,8 @@ import {
   ArrowRight, X, ChevronRight, ChevronDown, CheckCircle2
 } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 type Product = {
   id: string;
   name: string;
@@ -83,8 +85,34 @@ const fallback: Product[] = [
 ];
 
 export default function Home() {
-  const [products, setProducts] = useState<Product[]>(fallback);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // Inicialización instantánea de productos desde localStorage para evitar demoras
+  const [products, setProducts] = useState<Product[]>(() => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("stefmol_products_cache");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch (e) { }
+      }
+    }
+    return fallback;
+  });
+
+  // Inicialización instantánea del carrito desde localStorage
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    if (typeof window !== "undefined") {
+      const savedCart = localStorage.getItem("stefmol_cart");
+      if (savedCart) {
+        try {
+          const parsed = JSON.parse(savedCart);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (e) { }
+      }
+    }
+    return [];
+  });
+
   const [activeCategory, setActiveCategory] = useState("Promociones del Mes");
   const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -94,64 +122,33 @@ export default function Home() {
   const [expandedMenuCategory, setExpandedMenuCategory] = useState<string | null>("Juguetes");
 
   const [note, setNote] = useState("");
-  const [loading, setLoading] = useState(true);
   const [addedId, setAddedId] = useState<string | null>(null);
-
   const [promoImageIndex, setPromoImageIndex] = useState(0);
 
-  // Cargar productos al iniciar (con caché en localStorage para carga instantánea)
+  // Sincronización en segundo plano con el servidor
   useEffect(() => {
-    // 1. Cargar la caché inmediatamente para que los productos aparezcan sin demoras
-    const cachedProducts = localStorage.getItem("stefmol_products_cache");
-    if (cachedProducts) {
-      try {
-        const parsed = JSON.parse(cachedProducts);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setProducts(parsed);
-          setLoading(false);
-        }
-      } catch (e) {
-        console.error("Error leyendo la caché de productos:", e);
-      }
-    }
-
-    // 2. Traer productos actualizados del servidor en segundo plano
     fetch("/api/products")
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then((d: Product[]) => {
         if (Array.isArray(d) && d.length > 0) {
           setProducts(d);
           localStorage.setItem("stefmol_products_cache", JSON.stringify(d));
         }
       })
-      .catch(() => { })
-      .finally(() => setLoading(false));
+      .catch(() => { });
   }, []);
 
-  // Cargar y sincronizar carrito con localStorage
+  // Escuchar cambios en el carrito (desde detalle o pestañas)
   useEffect(() => {
-    const savedCart = localStorage.getItem("stefmol_cart");
-    if (savedCart) {
-      try {
-        const parsed = JSON.parse(savedCart);
-        if (Array.isArray(parsed)) setCart(parsed);
-      } catch (e) {
-        console.error("Error al leer el carrito:", e);
-      }
-    }
-
     function handleStorageChange() {
       const updatedCart = localStorage.getItem("stefmol_cart");
       if (updatedCart) {
         try {
           const parsed = JSON.parse(updatedCart);
           if (Array.isArray(parsed)) setCart(parsed);
-        } catch (e) {
-          console.error("Error al sincronizar el carrito:", e);
-        }
+        } catch (e) { }
       }
     }
-
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
@@ -524,8 +521,6 @@ export default function Home() {
             ))}
           </div>
         )}
-
-        {loading && <p className="text-gray-500 py-3">Cargando catálogo…</p>}
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
           {visible.map(p => {
