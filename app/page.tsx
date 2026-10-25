@@ -44,19 +44,20 @@ const categoryStructure = [
 ];
 
 export default function Home() {
-  // Carga instantánea desde localStorage al primer milisegundo (0 segundos de espera)
   const [products, setProducts] = useState<Product[]>(() => {
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem("stefmol_products_cache");
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed)) return parsed;
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         } catch (e) { }
       }
     }
     return [];
   });
+
+  const [loading, setLoading] = useState(() => products.length === 0);
 
   const [cart, setCart] = useState<CartItem[]>(() => {
     if (typeof window !== "undefined") {
@@ -81,7 +82,7 @@ export default function Home() {
   const [addedId, setAddedId] = useState<string | null>(null);
   const [promoImageIndex, setPromoImageIndex] = useState(0);
 
-  // Sincronización en segundo plano (no bloquea la pantalla)
+  // Sincronización en segundo plano con control de carga
   useEffect(() => {
     fetch("/api/products")
       .then(r => r.ok ? r.json() : Promise.reject())
@@ -91,7 +92,8 @@ export default function Home() {
           localStorage.setItem("stefmol_products_cache", JSON.stringify(d));
         }
       })
-      .catch(() => { });
+      .catch(() => { })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -402,60 +404,75 @@ export default function Home() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-          {visible.map(p => {
-            const isAdded = addedId === p.id;
-            const displayImg = (p.image_urls && p.image_urls[0]) || p.image_url;
-            return (
-              <article key={p.id} className="bg-white rounded-2xl p-3 shadow-md flex flex-col justify-between border border-[#F5D9D6] hover:shadow-lg transition-all">
-                <div>
-                  <a href={`/producto/${p.id}`} className="aspect-square rounded-xl bg-[#FAF0EE] overflow-hidden flex items-center justify-center relative cursor-pointer group block">
-                    {displayImg ? (
-                      <img src={displayImg} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                    ) : (
-                      <div className="text-center p-4 group-hover:scale-105 transition-transform">
-                        <Heart size={44} className="text-[#B76E79] mx-auto" />
-                        <p className="text-xs text-[#B76E79] mt-3 font-semibold">Ver detalle</p>
-                      </div>
-                    )}
-                    {p.promo && (
-                      <span className="absolute top-2 left-2 bg-[#B76E79] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">Promo</span>
-                    )}
-                  </a>
-                  <a href={`/producto/${p.id}`}>
-                    <h3 className="font-bold mt-3 leading-snug text-[#3B3B3B] cursor-pointer hover:text-[#B76E79] transition-colors line-clamp-2">{p.name}</h3>
-                  </a>
+        {/* SKELETON LOADERS SI ESTÁ CARGANDO POR PRIMERA VEZ */}
+        {loading && products.length === 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
+              <div key={n} className="bg-white rounded-2xl p-3 shadow-md border border-[#F5D9D6] h-72 animate-pulse flex flex-col justify-between">
+                <div className="bg-[#FAF0EE] w-full aspect-square rounded-xl" />
+                <div className="space-y-2 mt-3">
+                  <div className="h-4 bg-[#FAF0EE] rounded w-3/4" />
+                  <div className="h-4 bg-[#FAF0EE] rounded w-1/2" />
                 </div>
-                <div>
-                  <div className="mt-3 flex items-baseline gap-2">
-                    <span className="text-[#B76E79] font-black text-base md:text-lg">{money(p.price)}</span>
-                    {p.original_price && p.original_price > p.price && (
-                      <span className="text-xs text-gray-400 line-through font-semibold">{money(p.original_price)}</span>
-                    )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+            {visible.map(p => {
+              const isAdded = addedId === p.id;
+              const displayImg = (p.image_urls && p.image_urls[0]) || p.image_url;
+              return (
+                <article key={p.id} className="bg-white rounded-2xl p-3 shadow-md flex flex-col justify-between border border-[#F5D9D6] hover:shadow-lg transition-all">
+                  <div>
+                    <a href={`/producto/${p.id}`} className="aspect-square rounded-xl bg-[#FAF0EE] overflow-hidden flex items-center justify-center relative cursor-pointer group block">
+                      {displayImg ? (
+                        <img src={displayImg} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      ) : (
+                        <div className="text-center p-4 group-hover:scale-105 transition-transform">
+                          <Heart size={44} className="text-[#B76E79] mx-auto" />
+                          <p className="text-xs text-[#B76E79] mt-3 font-semibold">Ver detalle</p>
+                        </div>
+                      )}
+                      {p.promo && (
+                        <span className="absolute top-2 left-2 bg-[#B76E79] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">Promo</span>
+                      )}
+                    </a>
+                    <a href={`/producto/${p.id}`}>
+                      <h3 className="font-bold mt-3 leading-snug text-[#3B3B3B] cursor-pointer hover:text-[#B76E79] transition-colors line-clamp-2">{p.name}</h3>
+                    </a>
                   </div>
-                  <button
-                    onClick={() => add(p)}
-                    className={`w-full rounded-xl p-3 mt-3 flex justify-center items-center gap-2 font-bold transition-all duration-300 transform active:scale-95 shadow-md cursor-pointer ${isAdded ? "bg-emerald-600 text-white shadow-emerald-500/30" : "bg-gradient-to-r from-[#B76E79] to-[#CFA18D] text-white shadow-black/10 hover:opacity-95"}`}
-                  >
-                    {isAdded ? (
-                      <>
-                        <CheckCircle2 size={17} className="animate-bounce" />
-                        <span>¡Agregado!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Plus size={17} />
-                        <span>Agregar</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                  <div>
+                    <div className="mt-3 flex items-baseline gap-2">
+                      <span className="text-[#B76E79] font-black text-base md:text-lg">{money(p.price)}</span>
+                      {p.original_price && p.original_price > p.price && (
+                        <span className="text-xs text-gray-400 line-through font-semibold">{money(p.original_price)}</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => add(p)}
+                      className={`w-full rounded-xl p-3 mt-3 flex justify-center items-center gap-2 font-bold transition-all duration-300 transform active:scale-95 shadow-md cursor-pointer ${isAdded ? "bg-emerald-600 text-white shadow-emerald-500/30" : "bg-gradient-to-r from-[#B76E79] to-[#CFA18D] text-white shadow-black/10 hover:opacity-95"}`}
+                    >
+                      {isAdded ? (
+                        <>
+                          <CheckCircle2 size={17} className="animate-bounce" />
+                          <span>¡Agregado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={17} />
+                          <span>Agregar</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
 
-        {!visible.length && <p className="py-12 text-center text-gray-500">No encontramos productos en esta categoría o subsección.</p>}
+        {!loading && !visible.length && <p className="py-12 text-center text-gray-500">No encontramos productos en esta categoría o subsección.</p>}
       </section>
 
       <footer className="bg-gradient-to-b from-[#1F1F1F] to-[#000000] text-white px-5 py-10 border-t border-[#CFA18D]/20">
