@@ -37,11 +37,11 @@ const categoryStructure = [
 ];
 
 export default function AdminPage() {
+    // ELIMINAMOS EL AUTO-LOGIN: Ahora siempre pedirá contraseña al entrar por seguridad
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [inputPassword, setInputPassword] = useState("");
     const [passwordError, setPasswordError] = useState(false);
 
-    // CARGA INSTANTÁNEA DESDE EL NAVEGADOR (Cero espera)
     const [products, setProducts] = useState<Product[]>(() => {
         if (typeof window !== "undefined") {
             const cached = localStorage.getItem("stefmol_products_cache");
@@ -58,26 +58,17 @@ export default function AdminPage() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [sortBy, setSortBy] = useState<"price-desc" | "price-asc" | "newest" | "name">("price-desc");
 
-    // Formulario
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [selectedCategories, setSelectedCategories] = useState<string[]>(["Juguetes"]);
     const [subcategory, setSubcategory] = useState("");
 
-    // Precios y Promoción
     const [promo, setPromo] = useState(false);
     const [price, setPrice] = useState("");
     const [originalPrice, setOriginalPrice] = useState("");
 
     const [images, setImages] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
-
-    useEffect(() => {
-        const sessionAuth = sessionStorage.getItem("admin_auth");
-        if (sessionAuth === "true") {
-            setIsAuthenticated(true);
-        }
-    }, []);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -89,7 +80,6 @@ export default function AdminPage() {
         e.preventDefault();
         if (inputPassword === ADMIN_PASSWORD) {
             setIsAuthenticated(true);
-            sessionStorage.setItem("admin_auth", "true");
             setPasswordError(false);
         } else {
             setPasswordError(true);
@@ -98,11 +88,9 @@ export default function AdminPage() {
 
     function handleLogout() {
         setIsAuthenticated(false);
-        sessionStorage.removeItem("admin_auth");
         setInputPassword("");
     }
 
-    // Sincronización silenciosa en segundo plano
     function loadProducts() {
         fetch("/api/products")
             .then((r) => (r.ok ? r.json() : []))
@@ -115,7 +103,6 @@ export default function AdminPage() {
             .catch((err) => console.error("Error cargando productos:", err));
     }
 
-    // Ordenamiento por defecto del más caro al más barato
     const sortedProducts = useMemo(() => {
         const list = [...products];
         return list.sort((a, b) => {
@@ -364,7 +351,6 @@ export default function AdminPage() {
         <main className="min-h-screen bg-[#FAF0EE] text-[#3B3B3B] p-4 md:p-8">
             <div className="max-w-5xl mx-auto space-y-8">
 
-                {/* ENCABEZADO */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-[#3B3B3B] via-[#1A1A1A] to-[#000000] p-6 rounded-3xl text-white shadow-xl border border-[#CFA18D]/30">
                     <div>
                         <a href="/" className="inline-flex items-center gap-2 text-xs text-[#CFA18D] hover:text-white font-bold mb-2 transition-colors">
@@ -381,7 +367,6 @@ export default function AdminPage() {
                     </button>
                 </div>
 
-                {/* FORMULARIO */}
                 <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-3xl shadow-lg border border-[#F5D9D6] space-y-6">
                     <div className="flex items-center justify-between border-b border-[#F5D9D6] pb-4">
                         <h2 className="text-xl font-bold text-[#3B3B3B] flex items-center gap-2">
@@ -400,8 +385,6 @@ export default function AdminPage() {
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-4">
-
-                        {/* NOMBRE */}
                         <div className="md:col-span-2">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">Nombre del Producto</label>
                             <input
@@ -414,7 +397,6 @@ export default function AdminPage() {
                             />
                         </div>
 
-                        {/* CHECKBOX PROMOCIÓN */}
                         <div className="md:col-span-2 flex items-center gap-3 bg-[#F5D9D6]/30 p-4 rounded-2xl border border-[#CFA18D]/30">
                             <input
                                 type="checkbox"
@@ -428,7 +410,6 @@ export default function AdminPage() {
                             </label>
                         </div>
 
-                        {/* SECCIÓN DE PRECIOS DINÁMICA */}
                         {promo ? (
                             <>
                                 <div>
@@ -475,7 +456,6 @@ export default function AdminPage() {
                             </div>
                         )}
 
-                        {/* CATEGORÍAS MÚLTIPLES */}
                         <div className="md:col-span-2 space-y-2">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
                                 Categorías Principales (Puedes marcar una o varias)
@@ -501,7 +481,6 @@ export default function AdminPage() {
                             </div>
                         </div>
 
-                        {/* SUBCATEGORÍA */}
                         <div className="md:col-span-2">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
                                 Subcategoría Específica
@@ -520,7 +499,6 @@ export default function AdminPage() {
                             </select>
                         </div>
 
-                        {/* FOTOS */}
                         <div className="md:col-span-2 space-y-3">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">Fotos del Producto</label>
                             <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold text-center">
@@ -550,7 +528,6 @@ export default function AdminPage() {
                             )}
                         </div>
 
-                        {/* DESCRIPCIÓN */}
                         <div className="md:col-span-2">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">Descripción del Producto</label>
                             <textarea
@@ -560,7 +537,6 @@ export default function AdminPage() {
                                 className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30 min-h-20"
                             />
                         </div>
-
                     </div>
 
                     <button
@@ -572,7 +548,6 @@ export default function AdminPage() {
                     </button>
                 </form>
 
-                {/* LISTADO DE PRODUCTOS ORDENADOS */}
                 <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg border border-[#F5D9D6] space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#F5D9D6] pb-4">
                         <h3 className="text-lg font-bold text-[#3B3B3B]">Productos Publicados ({sortedProducts.length})</h3>
