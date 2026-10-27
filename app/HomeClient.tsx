@@ -42,7 +42,7 @@ const categoryStructure = [
 ];
 
 export default function HomeClient({ initialProducts }: { initialProducts: Product[] }) {
-    // Carga síncrona inmediata desde localStorage (0 ms de espera visual)
+    // 1. CARGA INSTANTÁNEA DESDE EL NAVEGADOR: Lee el caché local al primer instante para que no demore nada
     const [products, setProducts] = useState<Product[]>(() => {
         if (typeof window !== "undefined") {
             const cached = localStorage.getItem("stefmol_products_cache");
@@ -56,7 +56,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: Produ
         return initialProducts || [];
     });
 
-    // Sincronización transparente en segundo plano con la API/Supabase
+    // 2. SINCRONIZACIÓN SILENCIOSA DE FONDO: Actualiza los datos de la base de datos sin congelar ni hacer esperar al usuario
     useEffect(() => {
         fetch("/api/products")
             .then((r) => (r.ok ? r.json() : Promise.reject()))
