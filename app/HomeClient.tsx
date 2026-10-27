@@ -33,7 +33,7 @@ const categoryStructure = [
     },
     {
         name: "Placer y Sensaciones",
-        subcategories: ["Anal", "Cremas fusión", "Estrechante", "Feromonas", "Garganta profunda", "Lubricantes", "Multiorgasmo", "Potenciador", "Comestibles", "Retardantes"]
+        subcategories: ["Anal", "Cremas fusión", "Estrechante", "Feromonas", "Garganta profunda", "Lubricantes", "Multiorgasmo", "Potencializador", "Comestibles", "Retardantes"]
     },
     {
         name: "Lencería",

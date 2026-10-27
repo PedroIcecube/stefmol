@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus, Trash2, Edit3, Check, X, ArrowLeft, Image as ImageIcon, Sparkles, Upload, Lock, KeyRound } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { Plus, Trash2, Edit3, Check, X, ArrowLeft, Image as ImageIcon, Sparkles, Upload, Lock, KeyRound, ArrowUpDown } from "lucide-react";
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "1000440962";
 
@@ -17,6 +17,7 @@ type Product = {
     image_url: string | null;
     image_urls?: string[];
     promo?: boolean;
+    created_at?: string;
 };
 
 const categoryStructure = [
@@ -44,6 +45,9 @@ export default function AdminPage() {
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null);
 
+    // Criterio de ordenamiento (por defecto: de mayor a menor precio)
+    const [sortBy, setSortBy] = useState<"price-desc" | "price-asc" | "newest" | "name">("price-desc");
+
     // Formulario
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
@@ -52,8 +56,8 @@ export default function AdminPage() {
 
     // Precios y Promoción
     const [promo, setPromo] = useState(false);
-    const [price, setPrice] = useState(""); // Precio de venta (o en promoción si es promo)
-    const [originalPrice, setOriginalPrice] = useState(""); // Precio anterior / normal tachado
+    const [price, setPrice] = useState("");
+    const [originalPrice, setOriginalPrice] = useState("");
 
     const [images, setImages] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
@@ -98,6 +102,22 @@ export default function AdminPage() {
             .catch((err) => console.error("Error cargando productos:", err))
             .finally(() => setLoading(false));
     }
+
+    // Ordenamiento memoizado
+    const sortedProducts = useMemo(() => {
+        const list = [...products];
+        return list.sort((a, b) => {
+            if (sortBy === "price-desc") return (Number(b.price) || 0) - (Number(a.price) || 0);
+            if (sortBy === "price-asc") return (Number(a.price) || 0) - (Number(b.price) || 0);
+            if (sortBy === "name") return (a.name || "").localeCompare(b.name || "");
+            if (sortBy === "newest") {
+                const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                return dateB - dateA;
+            }
+            return 0;
+        });
+    }, [products, sortBy]);
 
     function resetForm() {
         setName("");
@@ -144,7 +164,6 @@ export default function AdminPage() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    // Compresión en Canvas
     function compressImage(file: File): Promise<string> {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -220,7 +239,6 @@ export default function AdminPage() {
 
         setIsSaving(true);
 
-        // Si es promoción, asegurarnos de que la categoría "Promociones del Mes" esté incluida
         let finalCategories = [...selectedCategories];
         if (promo && !finalCategories.includes("Promociones del Mes")) {
             finalCategories.push("Promociones del Mes");
@@ -235,7 +253,6 @@ export default function AdminPage() {
             category: finalCategories[0] || "Juguetes",
             subcategory: subcategory || null,
             price: Number(price),
-            // Si hay promo y pusieron precio anterior, lo guardamos. Si no hay promo, original_price es null.
             original_price: promo && originalPrice ? Number(originalPrice) : null,
             image_url: images[0] || "",
             image_urls: images,
@@ -385,7 +402,7 @@ export default function AdminPage() {
                             />
                         </div>
 
-                        {/* CHECKBOX PROMOCIÓN (Arriba para activar los campos de precio condicionales) */}
+                        {/* CHECKBOX PROMOCIÓN */}
                         <div className="md:col-span-2 flex items-center gap-3 bg-[#F5D9D6]/30 p-4 rounded-2xl border border-[#CFA18D]/30">
                             <input
                                 type="checkbox"
@@ -402,7 +419,6 @@ export default function AdminPage() {
                         {/* SECCIÓN DE PRECIOS DINÁMICA */}
                         {promo ? (
                             <>
-                                {/* PRECIO ANTERIOR (TACHADO) */}
                                 <div>
                                     <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
                                         Precio Normal / Anterior (Tachado)
@@ -417,7 +433,6 @@ export default function AdminPage() {
                                     />
                                 </div>
 
-                                {/* PRECIO EN PROMOCIÓN (OFERTA) */}
                                 <div>
                                     <label className="block text-xs font-bold uppercase tracking-wider text-[#B76E79] mb-1">
                                         Precio en Promoción (Oferta actual)
@@ -433,7 +448,6 @@ export default function AdminPage() {
                                 </div>
                             </>
                         ) : (
-                            /* PRECIO NORMAL ÚNICO (CUANDO NO ES PROMO) */
                             <div className="md:col-span-2">
                                 <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
                                     Precio del Producto (COP)
@@ -546,17 +560,35 @@ export default function AdminPage() {
                     </button>
                 </form>
 
-                {/* LISTADO */}
+                {/* LISTADO DE PRODUCTOS */}
                 <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg border border-[#F5D9D6] space-y-4">
-                    <h3 className="text-lg font-bold text-[#3B3B3B]">Productos Publicados ({products.length})</h3>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#F5D9D6] pb-4">
+                        <h3 className="text-lg font-bold text-[#3B3B3B]">Productos Publicados ({sortedProducts.length})</h3>
+
+                        {/* SELECTOR DE ORDENAMIENTO */}
+                        <div className="flex items-center gap-2 bg-[#FAF0EE] px-3 py-1.5 rounded-xl border border-[#CFA18D]/30">
+                            <ArrowUpDown size={16} className="text-[#B76E79]" />
+                            <span className="text-xs font-bold text-[#3B3B3B]">Ordenar por:</span>
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value as any)}
+                                className="bg-transparent text-xs font-bold text-[#B76E79] focus:outline-none cursor-pointer"
+                            >
+                                <option value="price-desc">Mayor a menor precio ⬇️</option>
+                                <option value="price-asc">Menor a mayor precio ⬆️</option>
+                                <option value="newest">Más recientes 🆕</option>
+                                <option value="name">Nombre (A - Z) 🅰️</option>
+                            </select>
+                        </div>
+                    </div>
 
                     {loading ? (
                         <p className="text-sm text-gray-500 py-4">Cargando...</p>
-                    ) : !products.length ? (
+                    ) : !sortedProducts.length ? (
                         <p className="text-sm text-gray-500 py-4">Sin productos.</p>
                     ) : (
                         <div className="divide-y divide-gray-100">
-                            {products.map((p) => {
+                            {sortedProducts.map((p) => {
                                 const prodImgs = p.image_urls && p.image_urls.length > 0 ? p.image_urls : p.image_url ? [p.image_url] : [];
                                 const catText = p.categories && p.categories.length > 0 ? p.categories.join(" • ") : p.category;
 
