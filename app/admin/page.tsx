@@ -41,11 +41,21 @@ export default function AdminPage() {
     const [inputPassword, setInputPassword] = useState("");
     const [passwordError, setPasswordError] = useState(false);
 
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [editingId, setEditingId] = useState<string | null>(null);
+    // CARGA INSTANTÁNEA DESDE EL NAVEGADOR (Cero espera)
+    const [products, setProducts] = useState<Product[]>(() => {
+        if (typeof window !== "undefined") {
+            const cached = localStorage.getItem("stefmol_products_cache");
+            if (cached) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                } catch (e) { }
+            }
+        }
+        return [];
+    });
 
-    // Criterio de ordenamiento (por defecto: de mayor a menor precio)
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [sortBy, setSortBy] = useState<"price-desc" | "price-asc" | "newest" | "name">("price-desc");
 
     // Formulario
@@ -92,18 +102,20 @@ export default function AdminPage() {
         setInputPassword("");
     }
 
+    // Sincronización silenciosa en segundo plano
     function loadProducts() {
-        setLoading(true);
         fetch("/api/products")
             .then((r) => (r.ok ? r.json() : []))
             .then((data) => {
-                if (Array.isArray(data)) setProducts(data);
+                if (Array.isArray(data)) {
+                    setProducts(data);
+                    localStorage.setItem("stefmol_products_cache", JSON.stringify(data));
+                }
             })
-            .catch((err) => console.error("Error cargando productos:", err))
-            .finally(() => setLoading(false));
+            .catch((err) => console.error("Error cargando productos:", err));
     }
 
-    // Ordenamiento memoizado
+    // Ordenamiento por defecto del más caro al más barato
     const sortedProducts = useMemo(() => {
         const list = [...products];
         return list.sort((a, b) => {
@@ -560,12 +572,11 @@ export default function AdminPage() {
                     </button>
                 </form>
 
-                {/* LISTADO DE PRODUCTOS */}
+                {/* LISTADO DE PRODUCTOS ORDENADOS */}
                 <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg border border-[#F5D9D6] space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#F5D9D6] pb-4">
                         <h3 className="text-lg font-bold text-[#3B3B3B]">Productos Publicados ({sortedProducts.length})</h3>
 
-                        {/* SELECTOR DE ORDENAMIENTO */}
                         <div className="flex items-center gap-2 bg-[#FAF0EE] px-3 py-1.5 rounded-xl border border-[#CFA18D]/30">
                             <ArrowUpDown size={16} className="text-[#B76E79]" />
                             <span className="text-xs font-bold text-[#3B3B3B]">Ordenar por:</span>
@@ -582,9 +593,7 @@ export default function AdminPage() {
                         </div>
                     </div>
 
-                    {loading ? (
-                        <p className="text-sm text-gray-500 py-4">Cargando...</p>
-                    ) : !sortedProducts.length ? (
+                    {!sortedProducts.length ? (
                         <p className="text-sm text-gray-500 py-4">Sin productos.</p>
                     ) : (
                         <div className="divide-y divide-gray-100">
