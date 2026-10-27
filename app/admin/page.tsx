@@ -170,7 +170,7 @@ export default function AdminPage() {
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement("canvas");
-                    const MAX_SIZE = 600;
+                    const MAX_SIZE = 300;
                     let width = img.width;
                     let height = img.height;
 
@@ -191,7 +191,7 @@ export default function AdminPage() {
                     const ctx = canvas.getContext("2d");
                     ctx?.drawImage(img, 0, 0, width, height);
 
-                    resolve(canvas.toDataURL("image/jpeg", 0.6));
+                    resolve(canvas.toDataURL("image/jpeg", 0.4));
                 };
                 img.src = e.target?.result as string;
             };
