@@ -42,7 +42,7 @@ const categoryStructure = [
 ];
 
 export default function HomeClient({ initialProducts }: { initialProducts: Product[] }) {
-    // 1. CARGA INSTANTÁNEA DESDE EL NAVEGADOR: Lee el caché local al primer instante para que no demore nada
+    // 1. Carga instantánea desde localStorage si existe caché previa
     const [products, setProducts] = useState<Product[]>(() => {
         if (typeof window !== "undefined") {
             const cached = localStorage.getItem("stefmol_products_cache");
@@ -56,17 +56,32 @@ export default function HomeClient({ initialProducts }: { initialProducts: Produ
         return initialProducts || [];
     });
 
-    // 2. SINCRONIZACIÓN SILENCIOSA DE FONDO: Actualiza los datos de la base de datos sin congelar ni hacer esperar al usuario
+    // Estado de carga para controlar el Skeleton Loader
+    const [isLoading, setIsLoading] = useState<boolean>(() => {
+        if (typeof window !== "undefined") {
+            const cached = localStorage.getItem("stefmol_products_cache");
+            if (cached) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    if (Array.isArray(parsed) && parsed.length > 0) return false;
+                } catch (e) { }
+            }
+        }
+        return initialProducts.length === 0;
+    });
+
+    // 2. Sincronización silenciosa en segundo plano con la API
     useEffect(() => {
         fetch("/api/products")
             .then((r) => (r.ok ? r.json() : Promise.reject()))
             .then((d: Product[]) => {
-                if (Array.isArray(d) && d.length > 0) {
+                if (Array.isArray(d)) {
                     setProducts(d);
                     localStorage.setItem("stefmol_products_cache", JSON.stringify(d));
                 }
             })
-            .catch(() => { });
+            .catch(() => { })
+            .finally(() => setIsLoading(false));
     }, []);
 
     const [cart, setCart] = useState<CartItem[]>(() => {
@@ -400,60 +415,77 @@ export default function HomeClient({ initialProducts }: { initialProducts: Produ
                     </div>
                 )}
 
+                {/* SKELETON LOADER O PRODUCTOS VISIBLES */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-                    {visible.map(p => {
-                        const isAdded = addedId === p.id;
-                        const displayImg = (p.image_urls && p.image_urls[0]) || p.image_url;
-                        return (
-                            <article key={p.id} className="bg-white rounded-2xl p-3 shadow-md flex flex-col justify-between border border-[#F5D9D6] hover:shadow-lg transition-all">
+                    {isLoading ? (
+                        Array.from({ length: 8 }).map((_, idx) => (
+                            <div key={idx} className="bg-white rounded-2xl p-3 shadow-md flex flex-col justify-between border border-[#F5D9D6] animate-pulse">
                                 <div>
-                                    <a href={`/producto/${p.id}`} className="aspect-square rounded-xl bg-[#FAF0EE] overflow-hidden flex items-center justify-center relative cursor-pointer group block">
-                                        {displayImg ? (
-                                            <img src={displayImg} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                                        ) : (
-                                            <div className="text-center p-4 group-hover:scale-105 transition-transform">
-                                                <Heart size={44} className="text-[#B76E79] mx-auto" />
-                                                <p className="text-xs text-[#B76E79] mt-3 font-semibold">Ver detalle</p>
-                                            </div>
-                                        )}
-                                        {p.promo && (
-                                            <span className="absolute top-2 left-2 bg-[#B76E79] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">Promo</span>
-                                        )}
-                                    </a>
-                                    <a href={`/producto/${p.id}`}>
-                                        <h3 className="font-bold mt-3 leading-snug text-[#3B3B3B] cursor-pointer hover:text-[#B76E79] transition-colors line-clamp-2">{p.name}</h3>
-                                    </a>
+                                    <div className="aspect-square rounded-xl bg-gray-200 w-full mb-3" />
+                                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+                                    <div className="h-3 bg-gray-200 rounded w-1/2" />
                                 </div>
-                                <div>
-                                    <div className="mt-3 flex items-baseline gap-2">
-                                        <span className="text-[#B76E79] font-black text-base md:text-lg">{money(p.price)}</span>
-                                        {p.original_price && p.original_price > p.price && (
-                                            <span className="text-xs text-gray-400 line-through font-semibold">{money(p.original_price)}</span>
-                                        )}
+                                <div className="mt-4">
+                                    <div className="h-5 bg-gray-200 rounded w-1/3 mb-3" />
+                                    <div className="h-10 bg-gray-200 rounded-xl w-full" />
+                                </div>
+                            </div>
+                        ))
+                    ) : visible.length > 0 ? (
+                        visible.map(p => {
+                            const isAdded = addedId === p.id;
+                            const displayImg = (p.image_urls && p.image_urls[0]) || p.image_url;
+                            return (
+                                <article key={p.id} className="bg-white rounded-2xl p-3 shadow-md flex flex-col justify-between border border-[#F5D9D6] hover:shadow-lg transition-all">
+                                    <div>
+                                        <a href={`/producto/${p.id}`} className="aspect-square rounded-xl bg-[#FAF0EE] overflow-hidden flex items-center justify-center relative cursor-pointer group block">
+                                            {displayImg ? (
+                                                <img src={displayImg} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                            ) : (
+                                                <div className="text-center p-4 group-hover:scale-105 transition-transform">
+                                                    <Heart size={44} className="text-[#B76E79] mx-auto" />
+                                                    <p className="text-xs text-[#B76E79] mt-3 font-semibold">Ver detalle</p>
+                                                </div>
+                                            )}
+                                            {p.promo && (
+                                                <span className="absolute top-2 left-2 bg-[#B76E79] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">Promo</span>
+                                            )}
+                                        </a>
+                                        <a href={`/producto/${p.id}`}>
+                                            <h3 className="font-bold mt-3 leading-snug text-[#3B3B3B] cursor-pointer hover:text-[#B76E79] transition-colors line-clamp-2">{p.name}</h3>
+                                        </a>
                                     </div>
-                                    <button
-                                        onClick={() => add(p)}
-                                        className={`w-full rounded-xl p-3 mt-3 flex justify-center items-center gap-2 font-bold transition-all duration-300 transform active:scale-95 shadow-md cursor-pointer ${isAdded ? "bg-emerald-600 text-white shadow-emerald-500/30" : "bg-gradient-to-r from-[#B76E79] to-[#CFA18D] text-white shadow-black/10 hover:opacity-95"}`}
-                                    >
-                                        {isAdded ? (
-                                            <>
-                                                <CheckCircle2 size={17} className="animate-bounce" />
-                                                <span>¡Agregado!</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Plus size={17} />
-                                                <span>Agregar</span>
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </article>
-                        );
-                    })}
+                                    <div>
+                                        <div className="mt-3 flex items-baseline gap-2">
+                                            <span className="text-[#B76E79] font-black text-base md:text-lg">{money(p.price)}</span>
+                                            {p.original_price && p.original_price > p.price && (
+                                                <span className="text-xs text-gray-400 line-through font-semibold">{money(p.original_price)}</span>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={() => add(p)}
+                                            className={`w-full rounded-xl p-3 mt-3 flex justify-center items-center gap-2 font-bold transition-all duration-300 transform active:scale-95 shadow-md cursor-pointer ${isAdded ? "bg-emerald-600 text-white shadow-emerald-500/30" : "bg-gradient-to-r from-[#B76E79] to-[#CFA18D] text-white shadow-black/10 hover:opacity-95"}`}
+                                        >
+                                            {isAdded ? (
+                                                <>
+                                                    <CheckCircle2 size={17} className="animate-bounce" />
+                                                    <span>¡Agregado!</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Plus size={17} />
+                                                    <span>Agregar</span>
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </article>
+                            );
+                        })
+                    ) : (
+                        <p className="py-12 text-center text-gray-500 col-span-full">No encontramos productos en esta categoría o subsección.</p>
+                    )}
                 </div>
-
-                {!visible.length && <p className="py-12 text-center text-gray-500">No encontramos productos en esta categoría o subsección.</p>}
             </section>
 
             <footer className="bg-gradient-to-b from-[#1F1F1F] to-[#000000] text-white px-5 py-10 border-t border-[#CFA18D]/20">
