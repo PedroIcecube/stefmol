@@ -170,7 +170,7 @@ export default function AdminPage() {
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement("canvas");
-                    const MAX_SIZE = 300;
+                    const MAX_SIZE = 400; // Reducido para que la imagen sea ligera
                     let width = img.width;
                     let height = img.height;
 
@@ -191,6 +191,7 @@ export default function AdminPage() {
                     const ctx = canvas.getContext("2d");
                     ctx?.drawImage(img, 0, 0, width, height);
 
+                    // Calidad 0.4 para reducir drásticamente el peso en texto Base64
                     resolve(canvas.toDataURL("image/jpeg", 0.4));
                 };
                 img.src = e.target?.result as string;
