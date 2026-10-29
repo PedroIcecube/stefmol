@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Permitir cuerpos de solicitud grandes para las imágenes en Base64
-export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
@@ -12,10 +10,11 @@ export async function GET() {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Sin límite para que traiga absolutamente todos tus productos publicados
+    // Seleccionamos los campos necesarios pero optimizamos la carga de imágenes 
+    // para mantener el peso del JSON por debajo del límite de Vercel (4.5MB)
     const { data, error } = await supabase
       .from('products')
-      .select('*')
+      .select('id, name, description, category, categories, subcategory, price, original_price, image_url, promo, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
