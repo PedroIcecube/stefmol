@@ -17,7 +17,7 @@ export async function PUT(
         );
 
         const { data, error } = await supabase
-            .from('products')
+            .from('products-image')
             .update(body)
             .eq('id', id)
             .select();
