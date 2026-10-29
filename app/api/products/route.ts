@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// Permitir cuerpos de solicitud grandes para las imágenes en Base64
+export const maxDuration = 10;
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const supabase = createClient(
@@ -8,23 +12,47 @@ export async function GET() {
       process.env.SUPABASE_SERVICE_ROLE_KEY || ''
     );
 
-    // Traemos únicamente las columnas necesarias para aligerar la transferencia
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, description, category, categories, subcategory, price, original_price, image_url, image_urls, promo')
+      .select('*')
       .order('price', { ascending: false });
 
     if (error) {
-      return NextResponse.json([], { status: 500 });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Cabecera Cache-Control: Sirve la respuesta al instante desde la CDN de Vercel
     return NextResponse.json(data || [], {
       headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59',
       },
     });
-  } catch {
-    return NextResponse.json([], { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    );
+
+    const { data, error } = await supabase
+      .from('products')
+      .insert([body])
+      .select();
+
+    if (error) {
+      console.error("Supabase insert error:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, data });
+  } catch (err: any) {
+    console.error("Server error:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
