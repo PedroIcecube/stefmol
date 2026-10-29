@@ -9,24 +9,27 @@ export async function GET() {
   try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
     );
 
     const { data, error } = await supabase
-      .from('product-images')
+      .from('products') // <-- Corregido a 'products'
       .select('*')
-      .order('price', { ascending: false });
+      .order('price', { ascending: false })
+      .limit(50); // Limitamos para evitar sobrecarga de datos pesados
 
     if (error) {
+      console.error("Error en Supabase GET:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json(data || [], {
       headers: {
-        'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59',
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
       },
     });
   } catch (err: any) {
+    console.error("Excepción en GET /api/products:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -37,11 +40,11 @@ export async function POST(request: Request) {
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
     );
 
     const { data, error } = await supabase
-      .from('product-images')
+      .from('products') // <-- Corregido a 'products'
       .insert([body])
       .select();
 

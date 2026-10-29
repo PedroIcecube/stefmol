@@ -17,7 +17,7 @@ export async function PUT(
         );
 
         const { data, error } = await supabase
-            .from('product-images')
+            .from('products')
             .update(body)
             .eq('id', id)
             .select();
@@ -45,7 +45,7 @@ export async function DELETE(
         );
 
         const { error } = await supabase
-            .from('product-images')
+            .from('products')
             .delete()
             .eq('id', id);
 
