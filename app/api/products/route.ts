@@ -7,16 +7,16 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-    );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Sin límite para que traiga absolutamente todos tus productos publicados
     const { data, error } = await supabase
-      .from('products') // <-- Corregido a 'products'
+      .from('products')
       .select('*')
-      .order('price', { ascending: false })
-      .limit(50); // Limitamos para evitar sobrecarga de datos pesados
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error("Error en Supabase GET:", error);
@@ -38,24 +38,24 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-    );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { data, error } = await supabase
-      .from('products') // <-- Corregido a 'products'
+      .from('products')
       .insert([body])
       .select();
 
     if (error) {
-      console.error("Supabase insert error:", error);
+      console.error("Error en Supabase POST:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, data });
   } catch (err: any) {
-    console.error("Server error:", err);
+    console.error("Excepción en POST /api/products:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
