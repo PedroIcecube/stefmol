@@ -13,7 +13,7 @@ export async function GET() {
     );
 
     const { data, error } = await supabase
-      .from('products-image')
+      .from('product-images')
       .select('*')
       .order('price', { ascending: false });
 
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     );
 
     const { data, error } = await supabase
-      .from('products-image')
+      .from('product-images')
       .insert([body])
       .select();
 
