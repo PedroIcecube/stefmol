@@ -2,15 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { Plus, Trash2, Edit3, Check, X, ArrowLeft, Image as ImageIcon, Sparkles, Upload, Lock, KeyRound, ArrowUpDown } from "lucide-react";
-import { createClient } from "@supabase/supabase-js";
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "1000440962";
-
-// Cliente de Supabase directo en el cliente para subir archivos sin pasar por el límite de Vercel
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-);
 
 type Product = {
     id: string;
@@ -44,6 +37,7 @@ const categoryStructure = [
 ];
 
 export default function AdminPage() {
+    // ELIMINAMOS EL AUTO-LOGIN: Ahora siempre pedirá contraseña al entrar por seguridad
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [inputPassword, setInputPassword] = useState("");
     const [passwordError, setPasswordError] = useState(false);
@@ -74,7 +68,6 @@ export default function AdminPage() {
     const [originalPrice, setOriginalPrice] = useState("");
 
     const [images, setImages] = useState<string[]>([]);
-    const [isUploading, setIsUploading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
@@ -170,42 +163,48 @@ export default function AdminPage() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    // SUBIDA DIRECTA A SUPABASE STORAGE (Sin Base64 pesados)
+    function compressImage(file: File): Promise<string> {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    const MAX_SIZE = 600;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_SIZE) {
+                            height *= MAX_SIZE / width;
+                            width = MAX_SIZE;
+                        }
+                    } else {
+                        if (height > MAX_SIZE) {
+                            width *= MAX_SIZE / height;
+                            height = MAX_SIZE;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext("2d");
+                    ctx?.drawImage(img, 0, 0, width, height);
+
+                    resolve(canvas.toDataURL("image/jpeg", 0.6));
+                };
+                img.src = e.target?.result as string;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
     async function handleFileSelection(e: React.ChangeEvent<HTMLInputElement>) {
         const files = Array.from(e.target.files || []);
         if (!files.length) return;
 
-        setIsUploading(true);
-        const uploadedUrls: string[] = [];
-
-        for (const file of files) {
-            try {
-                const fileExt = file.name.split(".").pop();
-                const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-
-                const { data, error } = await supabase.storage
-                    .from("products")
-                    .upload(fileName, file);
-
-                if (error) {
-                    console.error("Error subiendo imagen:", error);
-                    continue;
-                }
-
-                const { data: publicUrlData } = supabase.storage
-                    .from("products")
-                    .getPublicUrl(fileName);
-
-                if (publicUrlData?.publicUrl) {
-                    uploadedUrls.push(publicUrlData.publicUrl);
-                }
-            } catch (err) {
-                console.error("Error procesando imagen:", err);
-            }
-        }
-
-        setImages((prev) => [...prev, ...uploadedUrls]);
-        setIsUploading(false);
+        const compressedList = await Promise.all(files.map((file) => compressImage(file)));
+        setImages((prev) => [...prev, ...compressedList]);
         e.target.value = "";
     }
 
@@ -504,10 +503,8 @@ export default function AdminPage() {
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">Fotos del Producto</label>
                             <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold text-center">
                                 <Upload size={24} className="text-[#B76E79]" />
-                                <span className="text-sm font-bold">
-                                    {isUploading ? "Subiendo fotos a Supabase..." : "Seleccionar fotos desde tu dispositivo"}
-                                </span>
-                                <input type="file" accept="image/*" multiple onChange={handleFileSelection} disabled={isUploading} className="hidden" />
+                                <span className="text-sm font-bold">Seleccionar fotos desde tu dispositivo</span>
+                                <input type="file" accept="image/*" multiple onChange={handleFileSelection} className="hidden" />
                             </label>
 
                             {images.length > 0 && (
@@ -544,7 +541,7 @@ export default function AdminPage() {
 
                     <button
                         type="submit"
-                        disabled={isSaving || isUploading}
+                        disabled={isSaving}
                         className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-base uppercase tracking-wider shadow-xl hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                         {isSaving ? "Guardando..." : editingId ? <><Check size={20} /> Guardar Cambios</> : <><Plus size={20} /> Publicar Producto</>}
