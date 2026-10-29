@@ -37,7 +37,6 @@ const categoryStructure = [
 ];
 
 export default function AdminPage() {
-    // ELIMINAMOS EL AUTO-LOGIN: Ahora siempre pedirá contraseña al entrar por seguridad
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [inputPassword, setInputPassword] = useState("");
     const [passwordError, setPasswordError] = useState(false);
@@ -68,6 +67,7 @@ export default function AdminPage() {
     const [originalPrice, setOriginalPrice] = useState("");
 
     const [images, setImages] = useState<string[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
@@ -163,48 +163,30 @@ export default function AdminPage() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    function compressImage(file: File): Promise<string> {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement("canvas");
-                    const MAX_SIZE = 600;
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > height) {
-                        if (width > MAX_SIZE) {
-                            height *= MAX_SIZE / width;
-                            width = MAX_SIZE;
-                        }
-                    } else {
-                        if (height > MAX_SIZE) {
-                            width *= MAX_SIZE / height;
-                            height = MAX_SIZE;
-                        }
-                    }
-
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext("2d");
-                    ctx?.drawImage(img, 0, 0, width, height);
-
-                    resolve(canvas.toDataURL("image/jpeg", 0.6));
-                };
-                img.src = e.target?.result as string;
-            };
-            reader.readAsDataURL(file);
-        });
-    }
-
+    // CARGA LOCAL DIRECTA (Sin compresión ni Supabase Storage externo)
     async function handleFileSelection(e: React.ChangeEvent<HTMLInputElement>) {
         const files = Array.from(e.target.files || []);
         if (!files.length) return;
 
-        const compressedList = await Promise.all(files.map((file) => compressImage(file)));
-        setImages((prev) => [...prev, ...compressedList]);
+        setIsUploading(true);
+        const newImages: string[] = [];
+
+        for (const file of files) {
+            try {
+                const base64 = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+                newImages.push(base64);
+            } catch (err) {
+                console.error("Error leyendo archivo:", err);
+            }
+        }
+
+        setImages((prev) => [...prev, ...newImages]);
+        setIsUploading(false);
         e.target.value = "";
     }
 
@@ -271,7 +253,7 @@ export default function AdminPage() {
             if (res.ok) {
                 resetForm();
                 loadProducts();
-                alert("¡Producto guardado y actualizado exitosamente!");
+                alert("¡Producto guardado y publicado exitosamente!");
             } else {
                 alert("Ocurrió un error al guardar el producto.");
             }
@@ -503,8 +485,10 @@ export default function AdminPage() {
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">Fotos del Producto</label>
                             <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold text-center">
                                 <Upload size={24} className="text-[#B76E79]" />
-                                <span className="text-sm font-bold">Seleccionar fotos desde tu dispositivo</span>
-                                <input type="file" accept="image/*" multiple onChange={handleFileSelection} className="hidden" />
+                                <span className="text-sm font-bold">
+                                    {isUploading ? "Cargando fotos..." : "Seleccionar fotos desde tu dispositivo"}
+                                </span>
+                                <input type="file" accept="image/*" multiple onChange={handleFileSelection} disabled={isUploading} className="hidden" />
                             </label>
 
                             {images.length > 0 && (
@@ -541,7 +525,7 @@ export default function AdminPage() {
 
                     <button
                         type="submit"
-                        disabled={isSaving}
+                        disabled={isSaving || isUploading}
                         className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#B76E79] via-[#CFA18D] to-[#B76E79] text-white font-black text-base uppercase tracking-wider shadow-xl hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                         {isSaving ? "Guardando..." : editingId ? <><Check size={20} /> Guardar Cambios</> : <><Plus size={20} /> Publicar Producto</>}
