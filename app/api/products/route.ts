@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+export const maxDuration = 15;
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
@@ -10,11 +11,9 @@ export async function GET() {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Seleccionamos los campos necesarios pero optimizamos la carga de imágenes 
-    // para mantener el peso del JSON por debajo del límite de Vercel (4.5MB)
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, description, category, categories, subcategory, price, original_price, image_url, promo, created_at')
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -42,19 +41,20 @@ export async function POST(request: Request) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Intentamos insertar asegurando los campos principales
     const { data, error } = await supabase
       .from('products')
       .insert([body])
       .select();
 
     if (error) {
-      console.error("Error en Supabase POST:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Error detallado en Supabase al hacer POST:", JSON.stringify(error, null, 2));
+      return NextResponse.json({ error: error.message, details: error }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, data });
   } catch (err: any) {
-    console.error("Excepción en POST /api/products:", err);
+    console.error("Excepción crítica en POST /api/products:", err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
