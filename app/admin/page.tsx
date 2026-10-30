@@ -159,21 +159,24 @@ export default function AdminPage() {
     }
 
     async function handleFileSelection(e: React.ChangeEvent<HTMLInputElement>) {
-        const files = Array.from(e.target.files || []);
-        if (!files.length) return;
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
 
         setIsUploading(true);
         const newImages: string[] = [];
 
-        for (const file of files) {
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
             try {
                 const base64 = await new Promise<string>((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = () => resolve(reader.result as string);
-                    reader.onerror = reject;
+                    reader.onerror = (error) => reject(error);
                     reader.readAsDataURL(file);
                 });
-                newImages.push(base64);
+                if (base64) {
+                    newImages.push(base64);
+                }
             } catch (err) {
                 console.error("Error leyendo archivo:", err);
             }
@@ -256,7 +259,7 @@ export default function AdminPage() {
             if (res.ok) {
                 resetForm();
                 loadProducts();
-                alert("¡Producto guardado y publicado exitosamente con sus imágenes!");
+                alert("¡Producto guardado y publicado exitosamente!");
             } else {
                 alert("Ocurrió un error al guardar el producto.");
             }
@@ -441,9 +444,61 @@ export default function AdminPage() {
                             </div>
                         )}
 
+                        <div className="md:col-span-2 space-y-2">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
+                                Categorías Principales (Puedes marcar varias)
+                            </label>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                {categoryStructure.map((cat) => {
+                                    const isChecked = selectedCategories.includes(cat.name);
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={cat.name}
+                                            onClick={() => toggleCategory(cat.name)}
+                                            className={`p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${isChecked
+                                                ? "bg-[#B76E79] text-white border-[#B76E79] shadow-md"
+                                                : "bg-[#FAF0EE]/40 text-[#3B3B3B] border-gray-200 hover:border-[#CFA18D]"
+                                                }`}
+                                        >
+                                            <span>{cat.name}</span>
+                                            {isChecked && <Check size={14} />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {availableSubcategories.length > 0 && (
+                            <div className="md:col-span-2 space-y-2">
+                                <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
+                                    Subcategorías Específicas (Puedes marcar varias)
+                                </label>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                    {availableSubcategories.map((sub) => {
+                                        const isChecked = selectedSubcategories.includes(sub);
+                                        return (
+                                            <button
+                                                type="button"
+                                                key={sub}
+                                                onClick={() => toggleSubcategory(sub)}
+                                                className={`p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${isChecked
+                                                    ? "bg-[#3B3B3B] text-white border-[#3B3B3B] shadow-md"
+                                                    : "bg-[#FAF0EE]/40 text-[#3B3B3B] border-gray-200 hover:border-[#CFA18D]"
+                                                    }`}
+                                            >
+                                                <span>{sub}</span>
+                                                {isChecked && <Check size={14} />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="md:col-span-2 space-y-3">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
-                                Fotos del Producto (Puedes subir varias a la vez)
+                                Fotos del Producto (Selecciona varias fotos a la vez)
                             </label>
                             <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold text-center">
                                 <Upload size={24} className="text-[#B76E79]" />
@@ -463,7 +518,7 @@ export default function AdminPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => removeImage(idx)}
-                                                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 cursor-pointer"
+                                                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 cursor-pointer hover:bg-red-700"
                                                 >
                                                     <X size={12} />
                                                 </button>
@@ -520,6 +575,7 @@ export default function AdminPage() {
                         <div className="divide-y divide-gray-100">
                             {sortedProducts.map((p) => {
                                 const prodImgs = p.image_urls && p.image_urls.length > 0 ? p.image_urls : p.image_url ? [p.image_url] : [];
+                                const catText = p.categories && p.categories.length > 0 ? p.categories.join(" • ") : p.category;
 
                                 return (
                                     <div key={p.id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -532,8 +588,9 @@ export default function AdminPage() {
                                                     {p.name}
                                                     {p.promo && <span className="bg-[#B76E79] text-white text-[9px] px-2 py-0.5 rounded-full uppercase">Promo</span>}
                                                 </h4>
-                                                <p className="text-xs text-gray-500">
-                                                    Imágenes guardadas: <span className="font-bold text-[#B76E79]">{prodImgs.length}</span>
+                                                <p className="text-xs text-gray-500">{catText}</p>
+                                                <p className="text-xs font-bold text-[#B76E79]">
+                                                    Fotos: {prodImgs.length} cargadas
                                                 </p>
                                                 <div className="flex items-center gap-2 mt-0.5">
                                                     <span className="text-sm font-black text-[#B76E79]">
