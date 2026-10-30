@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Plus, Trash2, Edit3, Check, X, ArrowLeft, Image as ImageIcon, Sparkles, Upload, Lock, KeyRound, ArrowUpDown } from "lucide-react";
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "1000440962";
@@ -58,6 +58,8 @@ export default function AdminPage() {
     const [images, setImages] = useState<string[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -184,7 +186,9 @@ export default function AdminPage() {
 
         setImages((prev) => [...prev, ...newImages]);
         setIsUploading(false);
-        e.target.value = "";
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
     }
 
     function removeImage(index: number) {
@@ -500,13 +504,25 @@ export default function AdminPage() {
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
                                 Fotos del Producto (Selecciona varias fotos a la vez)
                             </label>
-                            <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold text-center">
+
+                            {/* Botón directo que activa el selector de archivos sin bloqueos */}
+                            <div
+                                onClick={() => fileInputRef.current?.click()}
+                                className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold text-center transition-colors"
+                            >
                                 <Upload size={24} className="text-[#B76E79]" />
                                 <span className="text-sm font-bold">
-                                    {isUploading ? "Cargando fotos..." : "Seleccionar múltiples fotos"}
+                                    {isUploading ? "Cargando fotos..." : "Haz clic aquí para seleccionar múltiples fotos"}
                                 </span>
-                                <input type="file" accept="image/*" multiple onChange={handleFileSelection} disabled={isUploading} className="hidden" />
-                            </label>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={handleFileSelection}
+                                    className="hidden"
+                                />
+                            </div>
 
                             {images.length > 0 && (
                                 <div className="pt-2">
