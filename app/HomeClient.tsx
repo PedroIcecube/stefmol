@@ -14,7 +14,7 @@ type Product = {
     category: string | null;
     categories?: string[];
     subcategory?: string | null;
-    subcategories?: string[]; // <--- Agrega esta línea
+    subcategories?: string[];
     price: number;
     original_price?: number | null;
     image_url: string | null;
@@ -43,7 +43,7 @@ const categoryStructure = [
 ];
 
 export default function HomeClient({ initialProducts }: { initialProducts: Product[] }) {
-    // 1. Carga instantánea desde localStorage si existe caché previa
+    // 1. Carga instantánea desde localStorage si existe caché previa de productos
     const [products, setProducts] = useState<Product[]>(() => {
         if (typeof window !== "undefined") {
             const cached = localStorage.getItem("stefmol_products_cache");
@@ -71,7 +71,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: Produ
         return initialProducts.length === 0;
     });
 
-    // 2. Sincronización silenciosa en segundo plano con la API
+    // 2. Sincronización en segundo plano con la API para catálogo
     useEffect(() => {
         fetch("/api/products")
             .then((r) => (r.ok ? r.json() : Promise.reject()))
@@ -85,18 +85,8 @@ export default function HomeClient({ initialProducts }: { initialProducts: Produ
             .finally(() => setIsLoading(false));
     }, []);
 
-    const [cart, setCart] = useState<CartItem[]>(() => {
-        if (typeof window !== "undefined") {
-            const savedCart = localStorage.getItem("stefmol_cart");
-            if (savedCart) {
-                try {
-                    const parsed = JSON.parse(savedCart);
-                    if (Array.isArray(parsed)) return parsed;
-                } catch (e) { }
-            }
-        }
-        return [];
-    });
+    // 3. Carrito siempre se inicia vacío en cada recarga
+    const [cart, setCart] = useState<CartItem[]>([]);
 
     const [activeCategory, setActiveCategory] = useState("Promociones del Mes");
     const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null);
@@ -107,20 +97,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: Produ
     const [note, setNote] = useState("");
     const [addedId, setAddedId] = useState<string | null>(null);
     const [promoImageIndex, setPromoImageIndex] = useState(0);
-
-    useEffect(() => {
-        function handleStorageChange() {
-            const updatedCart = localStorage.getItem("stefmol_cart");
-            if (updatedCart) {
-                try {
-                    const parsed = JSON.parse(updatedCart);
-                    if (Array.isArray(parsed)) setCart(parsed);
-                } catch (e) { }
-            }
-        }
-        window.addEventListener("storage", handleStorageChange);
-        return () => window.removeEventListener("storage", handleStorageChange);
-    }, []);
 
     const promoImages = useMemo(() => {
         const promoProds = products.filter(p => p.promo === true || p.category === "Promociones del Mes" || (p.categories && p.categories.includes("Promociones del Mes")));
@@ -154,11 +130,14 @@ export default function HomeClient({ initialProducts }: { initialProducts: Produ
             const matchCat = activeCategory === "Promociones del Mes"
                 ? isPromoProduct
                 : (p.categories ? p.categories.includes(activeCategory) : p.category === activeCategory);
+
+            // Soporte para múltiples subcategorías
             const matchSubcat = activeSubcategory
                 ? (p.subcategories && p.subcategories.length > 0
                     ? p.subcategories.includes(activeSubcategory)
                     : p.subcategory === activeSubcategory)
                 : true;
+
             const matchSearch = `${p.name} ${p.description ?? ""}`.toLowerCase().includes(search.toLowerCase());
             return matchCat && matchSubcat && matchSearch;
         });
@@ -166,26 +145,24 @@ export default function HomeClient({ initialProducts }: { initialProducts: Produ
 
     const total = cart.reduce((s, p) => s + p.price * p.quantity, 0);
 
+    // Agregar al carrito únicamente en memoria de la sesión
     function add(p: Product) {
         setCart(old => {
             const found = old.find(x => x.id === p.id);
-            const updated = found
+            return found
                 ? old.map(x => x.id === p.id ? { ...x, quantity: x.quantity + 1 } : x)
                 : [...old, { ...p, quantity: 1 }];
-            localStorage.setItem("stefmol_cart", JSON.stringify(updated));
-            return updated;
         });
         setAddedId(p.id);
         setTimeout(() => setAddedId(null), 1800);
     }
 
+    // Ajustar cantidad únicamente en memoria
     function qty(id: string, delta: number) {
         setCart(old => {
-            const updated = old
+            return old
                 .map(p => p.id === id ? { ...p, quantity: p.quantity + delta } : p)
                 .filter(p => p.quantity > 0);
-            localStorage.setItem("stefmol_cart", JSON.stringify(updated));
-            return updated;
         });
     }
 
@@ -525,23 +502,27 @@ export default function HomeClient({ initialProducts }: { initialProducts: Produ
                                     Tu carrito está vacío.
                                 </div>
                             ) : (
-                                <div className="divide-y divide-gray-100 mt-2">
+                                <div className="divide-y divide-gray-100 my-4 space-y-3">
                                     {cart.map(p => {
-                                        const itemImg = (p.image_urls && p.image_urls[0]) || p.image_url;
+                                        const img = (p.image_urls && p.image_urls[0]) || p.image_url;
                                         return (
-                                            <div key={p.id} className="py-4 flex gap-3 items-center">
-                                                <div className="w-20 h-20 rounded-lg bg-[#FAF0EE] overflow-hidden flex items-center justify-center border border-[#F5D9D6]">
-                                                    {itemImg ? <img src={itemImg} className="w-full h-full object-cover" alt={p.name} /> : <Heart className="text-[#B76E79]" />}
-                                                </div>
-                                                <div className="flex-1">
-                                                    <p className="font-semibold text-[#3B3B3B]">{p.name}</p>
-                                                    <p className="text-[#B76E79] font-bold">{money(p.price)}</p>
-                                                    <div className="flex items-center gap-3 mt-2">
-                                                        <button className="border rounded p-1 bg-white hover:bg-gray-50 cursor-pointer" onClick={() => qty(p.id, -1)}><Minus size={14} /></button>
-                                                        <span className="font-bold">{p.quantity}</span>
-                                                        <button className="border rounded p-1 bg-white hover:bg-gray-50 cursor-pointer" onClick={() => qty(p.id, 1)}><Plus size={14} /></button>
-                                                        <button className="ml-auto text-gray-400 hover:text-red-600 cursor-pointer" onClick={() => setCart(old => old.filter(x => x.id !== p.id))}><Trash2 size={17} /></button>
+                                            <div key={p.id} className="pt-3 flex items-center justify-between gap-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-14 h-14 rounded-xl bg-[#FAF0EE] overflow-hidden shrink-0 border border-gray-100 flex items-center justify-center">
+                                                        {img ? <img src={img} alt={p.name} className="w-full h-full object-cover" /> : <Heart size={20} className="text-[#B76E79]" />}
                                                     </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-sm text-[#3B3B3B] line-clamp-1">{p.name}</h4>
+                                                        <p className="text-xs text-[#B76E79] font-bold">{money(p.price)}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                                                        <button onClick={() => qty(p.id, -1)} className="p-1 hover:bg-gray-200 text-gray-600 cursor-pointer"><Minus size={14} /></button>
+                                                        <span className="px-2 text-xs font-bold text-[#3B3B3B]">{p.quantity}</span>
+                                                        <button onClick={() => qty(p.id, 1)} className="p-1 hover:bg-gray-200 text-gray-600 cursor-pointer"><Plus size={14} /></button>
+                                                    </div>
+                                                    <button onClick={() => qty(p.id, -p.quantity)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"><Trash2 size={16} /></button>
                                                 </div>
                                             </div>
                                         );
@@ -549,16 +530,25 @@ export default function HomeClient({ initialProducts }: { initialProducts: Produ
                                 </div>
                             )}
                         </div>
+
                         {cart.length > 0 && (
-                            <div className="border-t border-[#F5D9D6] pt-4 mt-4">
-                                <label className="block text-sm font-semibold mb-2">Notas del pedido (opcional)</label>
-                                <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Color, talla, referencias…" className="w-full border border-gray-200 rounded-xl p-3 min-h-20 text-sm focus:outline-[#B76E79]" />
-                                <div className="flex justify-between text-xl font-black my-4">
+                            <div className="border-t border-[#F5D9D6] pt-4 space-y-3 bg-white">
+                                <textarea
+                                    value={note}
+                                    onChange={e => setNote(e.target.value)}
+                                    placeholder="Notas especiales para tu pedido (opcional)..."
+                                    className="w-full border border-gray-200 rounded-xl p-3 text-xs focus:outline-[#B76E79] bg-[#FAF0EE]/30"
+                                />
+                                <div className="flex items-center justify-between font-black text-lg text-[#3B3B3B]">
                                     <span>Total:</span>
                                     <span className="text-[#B76E79]">{money(total)}</span>
                                 </div>
-                                <button onClick={checkout} className="w-full rounded-full bg-[#25D366] hover:bg-[#20ba5a] text-white py-4 font-bold flex justify-center items-center gap-2 shadow-lg shadow-green-600/20 transition-all cursor-pointer">
-                                    <MessageCircle /> Enviar pedido por WhatsApp
+                                <button
+                                    onClick={checkout}
+                                    className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#B76E79] to-[#CFA18D] text-white font-bold text-sm shadow-lg hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                >
+                                    <MessageCircle size={18} />
+                                    <span>Pedir por WhatsApp</span>
                                 </button>
                             </div>
                         )}
