@@ -14,6 +14,7 @@ type Product = {
     category: string | null;
     categories?: string[];
     subcategory?: string | null;
+    subcategories?: string[]; // <--- Agrega esta línea
     price: number;
     original_price?: number | null;
     image_url: string | null;
@@ -153,7 +154,11 @@ export default function HomeClient({ initialProducts }: { initialProducts: Produ
             const matchCat = activeCategory === "Promociones del Mes"
                 ? isPromoProduct
                 : (p.categories ? p.categories.includes(activeCategory) : p.category === activeCategory);
-            const matchSubcat = activeSubcategory ? p.subcategory === activeSubcategory : true;
+            const matchSubcat = activeSubcategory
+                ? (p.subcategories && p.subcategories.length > 0
+                    ? p.subcategories.includes(activeSubcategory)
+                    : p.subcategory === activeSubcategory)
+                : true;
             const matchSearch = `${p.name} ${p.description ?? ""}`.toLowerCase().includes(search.toLowerCase());
             return matchCat && matchSubcat && matchSearch;
         });
