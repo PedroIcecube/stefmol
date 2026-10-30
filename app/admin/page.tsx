@@ -12,6 +12,7 @@ type Product = {
     category: string | null;
     categories?: string[];
     subcategory?: string | null;
+    subcategories?: string[];
     price: number;
     original_price?: number | null;
     image_url: string | null;
@@ -41,26 +42,14 @@ export default function AdminPage() {
     const [inputPassword, setInputPassword] = useState("");
     const [passwordError, setPasswordError] = useState(false);
 
-    const [products, setProducts] = useState<Product[]>(() => {
-        if (typeof window !== "undefined") {
-            const cached = localStorage.getItem("stefmol_products_cache");
-            if (cached) {
-                try {
-                    const parsed = JSON.parse(cached);
-                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-                } catch (e) { }
-            }
-        }
-        return [];
-    });
-
+    const [products, setProducts] = useState<Product[]>([]);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [sortBy, setSortBy] = useState<"price-desc" | "price-asc" | "newest" | "name">("price-desc");
 
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [selectedCategories, setSelectedCategories] = useState<string[]>(["Juguetes"]);
-    const [subcategory, setSubcategory] = useState("");
+    const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
 
     const [promo, setPromo] = useState(false);
     const [price, setPrice] = useState("");
@@ -97,7 +86,6 @@ export default function AdminPage() {
             .then((data) => {
                 if (Array.isArray(data)) {
                     setProducts(data);
-                    localStorage.setItem("stefmol_products_cache", JSON.stringify(data));
                 }
             })
             .catch((err) => console.error("Error cargando productos:", err));
@@ -122,7 +110,7 @@ export default function AdminPage() {
         setName("");
         setDescription("");
         setSelectedCategories(["Juguetes"]);
-        setSubcategory("");
+        setSelectedSubcategories([]);
         setPrice("");
         setOriginalPrice("");
         setImages([]);
@@ -144,7 +132,14 @@ export default function AdminPage() {
             cats = ["Juguetes"];
         }
         setSelectedCategories(cats);
-        setSubcategory(p.subcategory || "");
+
+        let subs: string[] = [];
+        if (p.subcategories && Array.isArray(p.subcategories)) {
+            subs = p.subcategories;
+        } else if (p.subcategory) {
+            subs = [p.subcategory];
+        }
+        setSelectedSubcategories(subs);
 
         const isPromoItem = Boolean(p.promo) || cats.includes("Promociones del Mes");
         setPromo(isPromoItem);
@@ -163,7 +158,6 @@ export default function AdminPage() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    // CARGA LOCAL DIRECTA (Sin compresión ni Supabase Storage externo)
     async function handleFileSelection(e: React.ChangeEvent<HTMLInputElement>) {
         const files = Array.from(e.target.files || []);
         if (!files.length) return;
@@ -206,6 +200,14 @@ export default function AdminPage() {
         }
     }
 
+    function toggleSubcategory(subName: string) {
+        if (selectedSubcategories.includes(subName)) {
+            setSelectedSubcategories(selectedSubcategories.filter((s) => s !== subName));
+        } else {
+            setSelectedSubcategories([...selectedSubcategories, subName]);
+        }
+    }
+
     const availableSubcategories = categoryStructure
         .filter((c) => selectedCategories.includes(c.name))
         .flatMap((c) => c.subcategories);
@@ -232,7 +234,8 @@ export default function AdminPage() {
             description: description.trim(),
             categories: finalCategories,
             category: finalCategories[0] || "Juguetes",
-            subcategory: subcategory || null,
+            subcategories: selectedSubcategories,
+            subcategory: selectedSubcategories[0] || null,
             price: Number(price),
             original_price: promo && originalPrice ? Number(originalPrice) : null,
             image_url: images[0] || "",
@@ -253,7 +256,7 @@ export default function AdminPage() {
             if (res.ok) {
                 resetForm();
                 loadProducts();
-                alert("¡Producto guardado y publicado exitosamente!");
+                alert("¡Producto guardado y publicado exitosamente con sus imágenes!");
             } else {
                 alert("Ocurrió un error al guardar el producto.");
             }
@@ -438,55 +441,14 @@ export default function AdminPage() {
                             </div>
                         )}
 
-                        <div className="md:col-span-2 space-y-2">
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
-                                Categorías Principales (Puedes marcar una o varias)
-                            </label>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                {categoryStructure.map((cat) => {
-                                    const isChecked = selectedCategories.includes(cat.name);
-                                    return (
-                                        <button
-                                            type="button"
-                                            key={cat.name}
-                                            onClick={() => toggleCategory(cat.name)}
-                                            className={`p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${isChecked
-                                                ? "bg-[#B76E79] text-white border-[#B76E79] shadow-md"
-                                                : "bg-[#FAF0EE]/40 text-[#3B3B3B] border-gray-200 hover:border-[#CFA18D]"
-                                                }`}
-                                        >
-                                            <span>{cat.name}</span>
-                                            {isChecked && <Check size={14} />}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <div className="md:col-span-2">
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B] mb-1">
-                                Subcategoría Específica
-                            </label>
-                            <select
-                                value={subcategory}
-                                onChange={(e) => setSubcategory(e.target.value)}
-                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-[#B76E79] bg-[#FAF0EE]/30"
-                            >
-                                <option value="">-- Sin subcategoría específica --</option>
-                                {availableSubcategories.map((sub, idx) => (
-                                    <option key={idx} value={sub}>
-                                        {sub}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
                         <div className="md:col-span-2 space-y-3">
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">Fotos del Producto</label>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
+                                Fotos del Producto (Puedes subir varias a la vez)
+                            </label>
                             <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold text-center">
                                 <Upload size={24} className="text-[#B76E79]" />
                                 <span className="text-sm font-bold">
-                                    {isUploading ? "Cargando fotos..." : "Seleccionar fotos desde tu dispositivo"}
+                                    {isUploading ? "Cargando fotos..." : "Seleccionar múltiples fotos"}
                                 </span>
                                 <input type="file" accept="image/*" multiple onChange={handleFileSelection} disabled={isUploading} className="hidden" />
                             </label>
@@ -558,7 +520,6 @@ export default function AdminPage() {
                         <div className="divide-y divide-gray-100">
                             {sortedProducts.map((p) => {
                                 const prodImgs = p.image_urls && p.image_urls.length > 0 ? p.image_urls : p.image_url ? [p.image_url] : [];
-                                const catText = p.categories && p.categories.length > 0 ? p.categories.join(" • ") : p.category;
 
                                 return (
                                     <div key={p.id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -572,17 +533,12 @@ export default function AdminPage() {
                                                     {p.promo && <span className="bg-[#B76E79] text-white text-[9px] px-2 py-0.5 rounded-full uppercase">Promo</span>}
                                                 </h4>
                                                 <p className="text-xs text-gray-500">
-                                                    {catText} {p.subcategory ? `· ${p.subcategory}` : ""}
+                                                    Imágenes guardadas: <span className="font-bold text-[#B76E79]">{prodImgs.length}</span>
                                                 </p>
                                                 <div className="flex items-center gap-2 mt-0.5">
                                                     <span className="text-sm font-black text-[#B76E79]">
                                                         ${new Intl.NumberFormat("es-CO").format(p.price)} COP
                                                     </span>
-                                                    {p.original_price && p.original_price > p.price && (
-                                                        <span className="text-xs text-gray-400 line-through">
-                                                            ${new Intl.NumberFormat("es-CO").format(p.original_price)}
-                                                        </span>
-                                                    )}
                                                 </div>
                                             </div>
                                         </div>
