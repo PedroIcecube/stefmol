@@ -3,10 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function PUT(
     request: Request,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const id = params.id;
+        const { id } = await context.params;
         const body = await request.json();
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -47,10 +47,10 @@ export async function PUT(
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const id = params.id;
+        const { id } = await context.params;
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
