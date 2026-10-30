@@ -160,6 +160,48 @@ export default function AdminPage() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
+    // Función para comprimir imágenes antes de pasarlas a Base64
+    async function compressImage(file: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = document.createElement("img");
+                img.src = event.target?.result as string;
+                img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    const MAX_WIDTH = 800;
+                    const MAX_HEIGHT = 800;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext("2d");
+                    ctx?.drawImage(img, 0, 0, width, height);
+
+                    // Comprimir a JPEG con calidad del 80% para reducir peso drásticamente
+                    const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+                    resolve(dataUrl);
+                };
+                img.onerror = (error) => reject(error);
+            };
+            reader.onerror = (error) => reject(error);
+        });
+    }
+
     async function handleFileSelection(e: React.ChangeEvent<HTMLInputElement>) {
         const files = e.target.files;
         if (!files || files.length === 0) return;
@@ -168,19 +210,11 @@ export default function AdminPage() {
         const newImages: string[] = [];
 
         for (let i = 0; i < files.length; i++) {
-            const file = files[i];
             try {
-                const base64 = await new Promise<string>((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result as string);
-                    reader.onerror = (error) => reject(error);
-                    reader.readAsDataURL(file);
-                });
-                if (base64) {
-                    newImages.push(base64);
-                }
+                const compressedBase64 = await compressImage(files[i]);
+                newImages.push(compressedBase64);
             } catch (err) {
-                console.error("Error leyendo archivo:", err);
+                console.error("Error comprimiendo imagen:", err);
             }
         }
 
@@ -502,17 +536,16 @@ export default function AdminPage() {
 
                         <div className="md:col-span-2 space-y-3">
                             <label className="block text-xs font-bold uppercase tracking-wider text-[#3B3B3B]">
-                                Fotos del Producto (Selecciona varias fotos a la vez)
+                                Fotos del Producto (Se comprimirán automáticamente para evitar errores)
                             </label>
 
-                            {/* Botón directo que activa el selector de archivos sin bloqueos */}
                             <div
                                 onClick={() => fileInputRef.current?.click()}
                                 className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CFA18D] hover:border-[#B76E79] rounded-2xl p-5 bg-[#FAF0EE]/40 cursor-pointer text-[#3B3B3B] font-semibold text-center transition-colors"
                             >
                                 <Upload size={24} className="text-[#B76E79]" />
                                 <span className="text-sm font-bold">
-                                    {isUploading ? "Cargando fotos..." : "Haz clic aquí para seleccionar múltiples fotos"}
+                                    {isUploading ? "Comprimiendo y cargando fotos..." : "Haz clic aquí para seleccionar múltiples fotos"}
                                 </span>
                                 <input
                                     ref={fileInputRef}
