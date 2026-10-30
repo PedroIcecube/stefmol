@@ -41,10 +41,24 @@ export async function POST(request: Request) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Intentamos insertar asegurando los campos principales
+    // Estructuramos el payload asegurando que guarde tanto image_url como image_urls[]
+    const payload = {
+      name: body.name,
+      description: body.description,
+      category: body.category,
+      categories: body.categories,
+      subcategory: body.subcategory,
+      subcategories: body.subcategories,
+      price: body.price,
+      original_price: body.original_price,
+      image_url: body.image_urls?.[0] || body.image_url || "",
+      image_urls: body.image_urls || [],
+      promo: body.promo
+    };
+
     const { data, error } = await supabase
       .from('products')
-      .insert([body])
+      .insert([payload])
       .select();
 
     if (error) {
