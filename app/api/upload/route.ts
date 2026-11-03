@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { isAdmin } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  if (req.headers.get("x-admin-password") !== process.env.ADMIN_PASSWORD) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+  if (!isAdmin(req)) {
+  return NextResponse.json(
+    { error: "No autorizado" },
+    { status: 401 }
+  );
+}
 
   try {
     const form = await req.formData();

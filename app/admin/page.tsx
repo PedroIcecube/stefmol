@@ -67,15 +67,32 @@ export default function AdminPage() {
         }
     }, [isAuthenticated]);
 
-    function handleLogin(e: React.FormEvent) {
-        e.preventDefault();
-        if (inputPassword === ADMIN_PASSWORD) {
-            setIsAuthenticated(true);
-            setPasswordError(false);
-        } else {
-            setPasswordError(true);
-        }
+    async function handleLogin(e: React.FormEvent) {
+  e.preventDefault();
+
+  try {
+    const res = await fetch("/api/admin/session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "same-origin",
+      body: JSON.stringify({ password: inputPassword }),
+    });
+
+    if (res.ok) {
+      setIsAuthenticated(true);
+      setPasswordError(false);
+    } else {
+      setIsAuthenticated(false);
+      setPasswordError(true);
     }
+  } catch (error) {
+    console.error("Error al iniciar sesión:", error);
+    setIsAuthenticated(false);
+    setPasswordError(true);
+  }
+}
 
     function handleLogout() {
         setIsAuthenticated(false);
@@ -211,8 +228,31 @@ export default function AdminPage() {
 
         for (let i = 0; i < files.length; i++) {
             try {
-                const compressedBase64 = await compressImage(files[i]);
-                newImages.push(compressedBase64);
+               const formData = new FormData();
+formData.append("file", files[i]);
+
+const response = await fetch("/api/upload", {
+  method: "POST",
+  headers: {
+    "x-admin-password": ADMIN_PASSWORD,
+  },
+  body: formData,
+});
+
+const texto = await response.text();
+
+let result;
+try {
+  result = JSON.parse(texto);
+} catch {
+  throw new Error(texto.slice(0, 200));
+}
+
+if (!response.ok || !result.url) {
+  throw new Error(result.error || "No se pudo subir la imagen");
+}
+
+newImages.push(result.url);
             } catch (err) {
                 console.error("Error comprimiendo imagen:", err);
             }
@@ -290,7 +330,10 @@ export default function AdminPage() {
 
             const res = await fetch(url, {
                 method,
-                headers: { "Content-Type": "application/json" },
+                headers: {
+  "Content-Type": "application/json",
+  "x-admin-password": ADMIN_PASSWORD,
+},
                 body: JSON.stringify(payload),
             });
 

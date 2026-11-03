@@ -78,7 +78,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: Produ
             .then((d: Product[]) => {
                 if (Array.isArray(d)) {
                     setProducts(d);
-                    localStorage.setItem("stefmol_products_cache", JSON.stringify(d));
+                    try { localStorage.setItem("stefmol_products_cache", JSON.stringify(d)); } catch {}
                 }
             })
             .catch(() => { })
