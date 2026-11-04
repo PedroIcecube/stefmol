@@ -233,12 +233,9 @@ formData.append("file", files[i]);
 
 const response = await fetch("/api/upload", {
   method: "POST",
-  headers: {
-    "x-admin-password": ADMIN_PASSWORD,
-  },
+  credentials: "same-origin",
   body: formData,
 });
-
 const texto = await response.text();
 
 let result;
@@ -254,7 +251,7 @@ if (!response.ok || !result.url) {
 
 newImages.push(result.url);
             } catch (err) {
-                console.error("Error comprimiendo imagen:", err);
+                console.error("Error subiendo imagen:", err);
             }
         }
 
